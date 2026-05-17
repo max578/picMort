@@ -220,7 +220,9 @@ decision_curve <- function(probs, y,
 discrimination_metrics <- function(probs, y, reference = NULL,
                                    n_boot = 1000L, seed = 20260508L) {
   y <- as.integer(y); n <- length(y)
-  if (is.null(reference)) reference <- if ("pim3" %in% names(probs)) "pim3" else names(probs)[1L]
+  if (is.null(reference)) {
+    reference <- if ("pim3" %in% names(probs)) "pim3" else names(probs)[1L]
+  }
   ref_brier <- mean((probs[[reference]] - y)^2)
 
   point_metrics <- function(p, y) {
@@ -382,7 +384,8 @@ plot_calibration <- function(calib_list) {
     if (nrow(d) == 0L) return(NULL)
     data.table::data.table(model = nm, prob = d$prob, observed = d$observed)
   }))
-  ggplot2::ggplot(curves, ggplot2::aes(x = prob, y = observed, colour = model)) +
+  ggplot2::ggplot(curves,
+                  ggplot2::aes(x = prob, y = observed, colour = model)) +
     ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed",
                          colour = "grey40") +
     ggplot2::geom_line(linewidth = 0.8) +

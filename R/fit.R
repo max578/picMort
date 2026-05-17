@@ -159,8 +159,9 @@ fit_elastic_net <- function(features, train_idx,
 #' and the corresponding fitted model.
 #'
 #' @inheritParams fit_elastic_net
-#' @param grid `data.frame` of hyperparameter combinations. If `NULL`,
-#'   uses the canonical 4-row grid documented in `vignettes/paper1_baseline.Rmd`.
+#' @param grid `data.frame` of hyperparameter combinations. If `NULL`, uses
+#'   the canonical 4-row grid documented in
+#'   `vignettes/paper1_baseline.Rmd`.
 #'
 #' @return A list with `model`, `prep`, `predictors`, `best_params`,
 #'   `best_nrounds`, `cv_log`, `scale_pos_weight`, and `type = "xgboost"`.
@@ -326,7 +327,8 @@ fit_bayes_horseshoe <- function(features, train_idx,
 #' Routes to the appropriate predict implementation based on
 #' `model$type`. Returns a `data.table` with columns:
 #'   * `prob_raw`         -- model output (probability of in-hospital mortality)
-#'   * `prob_calibrated`  -- post-hoc calibrated (only XGBoost; same as raw otherwise)
+#'   * `prob_calibrated`  -- post-hoc calibrated (only XGBoost; same as raw
+#'     otherwise)
 #'   * `prob_lower`, `prob_upper` -- 95 % credible interval (Bayesian only)
 #'
 #' @param model Fit object from one of the `fit_*()` functions, OR a
@@ -360,16 +362,19 @@ fit_bayes_horseshoe <- function(features, train_idx,
 #' @export
 predict_mortality <- function(model, new_data) {
   if (data.table::is.data.table(model) && "pim3" %in% names(model)) {
-    out <- merge(data.table::data.table(icustay_id = new_data$icustay_id),
-                 model[, list(icustay_id, prob_raw = pim3, prob_calibrated = pim3)],
-                 by = "icustay_id", sort = FALSE, all.x = TRUE)
+    out <- merge(
+      data.table::data.table(icustay_id = new_data$icustay_id),
+      model[, list(icustay_id, prob_raw = pim3, prob_calibrated = pim3)],
+      by = "icustay_id", sort = FALSE, all.x = TRUE
+    )
     return(out[, list(prob_raw, prob_calibrated)])
   }
   bn <- bake_new(model$prep, new_data, model$predictors)
   switch(
     model$type,
     "glmnet" = {
-      prob <- as.numeric(stats::predict(model$model, newx = bn$X, type = "response"))
+      prob <- as.numeric(stats::predict(model$model,
+                                        newx = bn$X, type = "response"))
       data.table::data.table(prob_raw = prob, prob_calibrated = prob)
     },
     "xgboost" = {

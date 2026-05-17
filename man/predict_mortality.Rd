@@ -23,7 +23,8 @@ Routes to the appropriate predict implementation based on
 \code{model$type}. Returns a \code{data.table} with columns:
 \itemize{
 \item \code{prob_raw}         -- model output (probability of in-hospital mortality)
-\item \code{prob_calibrated}  -- post-hoc calibrated (only XGBoost; same as raw otherwise)
+\item \code{prob_calibrated}  -- post-hoc calibrated (only XGBoost; same as raw
+otherwise)
 \item \code{prob_lower}, \code{prob_upper} -- 95 \% credible interval (Bayesian only)
 }
 }

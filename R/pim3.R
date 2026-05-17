@@ -42,7 +42,8 @@ pim3_coefficients <- function() {
     low_risk_dx            = -1.5770,
     high_risk_dx           =  1.0044,
     very_high_risk_dx      =  2.4451,
-    pupils_fixed           = -1.2018     # encoded -1.2018 reflects sign in Straney
+    # encoded -1.2018 reflects sign convention in Straney et al. (2013)
+    pupils_fixed           = -1.2018
   )
 }
 
@@ -165,7 +166,8 @@ compute_pim3 <- function(cohort, paths, window_hours = 1L) {
   ce[, c("icustay_id_first","intime_first") := NULL]
   ce[, charttime := as.POSIXct(charttime, tz = "UTC")]
   ce[, t_hours   := as.numeric(difftime(charttime, intime, units = "hours"))]
-  ce <- ce[t_hours >= 0 & t_hours < window_hours & !is.na(valuenum) & valuenum > 0]
+  ce <- ce[t_hours >= 0 & t_hours < window_hours &
+           !is.na(valuenum) & valuenum > 0]
 
   sbp_tbl <- ce[, list(sbp_first_hour_min = min(valuenum)), by = icustay_id]
 
@@ -204,12 +206,14 @@ compute_pim3 <- function(cohort, paths, window_hours = 1L) {
                                recovery_bypass    = 0L)]
 
   ## --- Assemble component table ---------------------------------------------
-  pim3 <- merge(cohort[, list(icustay_id)], sbp_tbl,    by = "icustay_id", all.x = TRUE)
+  pim3 <- merge(cohort[, list(icustay_id)], sbp_tbl,
+                by = "icustay_id", all.x = TRUE)
   pim3 <- merge(pim3, risk_dt,     by = "icustay_id", all.x = TRUE)
   pim3 <- merge(pim3, recovery_dt, by = "icustay_id", all.x = TRUE)
 
   ## Default unrecovered components (Straney convention).
-  pim3[, sbp_used     := ifelse(is.na(sbp_first_hour_min), 120, sbp_first_hour_min)]
+  pim3[, sbp_used := ifelse(is.na(sbp_first_hour_min),
+                            120, sbp_first_hour_min)]
   pim3[, fio2_pao2    := 0]
   pim3[, base_excess  := 0]
   pim3[, mech_vent    := 0L]
@@ -246,8 +250,10 @@ compute_pim3 <- function(cohort, paths, window_hours = 1L) {
   pim3[, pim3 := stats::plogis(pim3_logit)]
 
   pim3[, list(icustay_id, pim3_logit, pim3,
-              risk_group = factor(risk_group,
-                                  levels = c("default","low","high","very_high")),
+              risk_group = factor(
+                risk_group,
+                levels = c("default", "low", "high", "very_high")
+              ),
               sbp_used, proxy_flags)]
 }
 

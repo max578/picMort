@@ -42,7 +42,8 @@ audit_no_leakage(ok_dict, window_hours = 24L)
 bad_dict <- data.table::copy(ok_dict)
 bad_dict <- rbind(bad_dict,
   data.table::data.table(variable = "los_hours", source = "cohort",
-                         transformation = "static", clinical_group = "demographics",
+                         transformation = "static",
+                         clinical_group = "demographics",
                          window_hours = 24L))
 tryCatch(audit_no_leakage(bad_dict, window_hours = 24L),
          error = function(e) conditionMessage(e))

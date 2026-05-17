@@ -160,7 +160,8 @@ build_features <- function(cohort, paths,
   lab_agg <- aggregate_panel(lab_long)
 
   ## --- Wide pivot ------------------------------------------------------------
-  vital_wide <- pivot_panel_wide(vital_agg, suffix_keep = c("min","max","mean","last"))
+  vital_wide <- pivot_panel_wide(vital_agg,
+                                 suffix_keep = c("min", "max", "mean", "last"))
   lab_wide   <- pivot_panel_wide(lab_agg,   suffix_keep = c("min","max","last"))
 
   ## --- Demographic features --------------------------------------------------
@@ -189,7 +190,8 @@ build_features <- function(cohort, paths,
   ## --- y aligned to x --------------------------------------------------------
   y_map <- cohort[, list(icustay_id, y = hospital_expire_flag)]
   data.table::setkey(y_map, icustay_id)
-  y_dt  <- y_map[data.table::data.table(icustay_id = x$icustay_id), on = "icustay_id"]
+  y_dt  <- y_map[data.table::data.table(icustay_id = x$icustay_id),
+                 on = "icustay_id"]
   y     <- y_dt$y
 
   ## --- Feature dictionary ----------------------------------------------------
@@ -253,7 +255,11 @@ build_feature_dict <- function(x, panels, miss_cols, window_hours) {
   add("primary_icd_chapter", "cohort",     "ICD-10 chapter (admission diagnosis)",
       "demographics")
   for (p in panels) {
-    suffixes <- if (p$clinical_group == "vitals") c("min","max","mean","last") else c("min","max","last")
+    suffixes <- if (p$clinical_group == "vitals") {
+      c("min", "max", "mean", "last")
+    } else {
+      c("min", "max", "last")
+    }
     for (s in suffixes) {
       add(paste(p$var, s, sep = "_"),
           if (p$clinical_group == "vitals") "CHARTEVENTS" else "LABEVENTS",
@@ -302,12 +308,14 @@ build_feature_dict <- function(x, panels, miss_cols, window_hours) {
 #' bad_dict <- data.table::copy(ok_dict)
 #' bad_dict <- rbind(bad_dict,
 #'   data.table::data.table(variable = "los_hours", source = "cohort",
-#'                          transformation = "static", clinical_group = "demographics",
+#'                          transformation = "static",
+#'                          clinical_group = "demographics",
 #'                          window_hours = 24L))
 #' tryCatch(audit_no_leakage(bad_dict, window_hours = 24L),
 #'          error = function(e) conditionMessage(e))
 #' @export
-audit_no_leakage <- function(feature_dict, raw_events = NULL, window_hours = 24L) {
+audit_no_leakage <- function(feature_dict, raw_events = NULL,
+                             window_hours = 24L) {
   forbidden <- c("\\blos\\b", "\\blos_", "_los\\b",
                  "outtime", "discharge", "dischtime",
                  "deathtime", "post_window")

@@ -39,13 +39,16 @@
 #' @importFrom data.table fread setnames setorder uniqueN setattr `:=` `.SD`
 #' @export
 build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
-  log_step <- function(steps, step, n, excluded = NA_integer_, reason = NA_character_) {
+  log_step <- function(steps, step, n,
+                       excluded = NA_integer_,
+                       reason = NA_character_) {
     if (isTRUE(verbose)) {
       message(sprintf("[cohort] %-32s n=%6d  (%s)", step, n,
                       if (is.na(reason)) "" else reason))
     }
     c(steps, list(data.table::data.table(step = step, n = n,
-                                         excluded = excluded, reason = reason)))
+                                         excluded = excluded,
+                                         reason = reason)))
   }
 
   steps <- list()
@@ -87,8 +90,10 @@ build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
                     excluded = before - nrow(icu_first),
                     reason = "non-first ICU stays per patient")
 
-  adm_keep <- intersect(c("subject_id","hadm_id","admittime","dischtime","deathtime",
-                          "hospital_expire_flag","icd10_code_cn","admission_department"),
+  adm_keep <- intersect(c("subject_id", "hadm_id",
+                          "admittime", "dischtime", "deathtime",
+                          "hospital_expire_flag",
+                          "icd10_code_cn", "admission_department"),
                         names(adm))
   cohort <- merge(icu_first,
                   adm[, .SD, .SDcols = adm_keep],
@@ -113,9 +118,11 @@ build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
   cohort[, sex := factor(gender, levels = c("F","M"))]
   cohort[, gender := NULL]
 
-  cohort[, age_years  := as.numeric(difftime(admittime, dob, units = "days")) / 365.25]
-  cohort[, age_months := as.integer(floor(as.numeric(difftime(admittime, dob,
-                                                              units = "days")) / 30.4375))]
+  cohort[, age_years  := as.numeric(difftime(admittime, dob,
+                                             units = "days")) / 365.25]
+  cohort[, age_months := as.integer(floor(
+    as.numeric(difftime(admittime, dob, units = "days")) / 30.4375
+  ))]
 
   before <- nrow(cohort)
   cohort <- cohort[age_years >= 0 & age_years <= 18]
@@ -142,8 +149,10 @@ build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
   if ("deathtime" %in% names(cohort)) {
     n_mismatch <- cohort[, sum(!is.na(deathtime) & hospital_expire_flag == 0L)]
     if (n_mismatch > 0L && isTRUE(verbose)) {
-      message(sprintf("[cohort] %-32s n=%6d  (DEATHTIME present but flag=0; flag wins per spec)",
-                      "deathtime_flag_mismatch", n_mismatch))
+      message(sprintf(
+        "[cohort] %-32s n=%6d  (DEATHTIME present but flag=0; flag wins per spec)",
+        "deathtime_flag_mismatch", n_mismatch
+      ))
     }
   }
 
@@ -156,7 +165,11 @@ build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
   surg_hadms <- unique(surg$hadm_id)
   cohort[, is_surgical := hadm_id %in% surg_hadms]
 
-  primary_icd <- if ("icd10_code_cn" %in% names(cohort)) cohort$icd10_code_cn else NA_character_
+  primary_icd <- if ("icd10_code_cn" %in% names(cohort)) {
+    cohort$icd10_code_cn
+  } else {
+    NA_character_
+  }
   cohort[, primary_icd_chapter := factor(icd10_to_chapter(primary_icd))]
 
   out <- cohort[, list(subject_id, hadm_id, icustay_id,
@@ -228,18 +241,25 @@ cohort_attrition <- function(paths, min_los_hours = 24L) {
 #' )
 #' assert_cohort_invariants(toy, expected = toy_expectations)
 #' @export
-assert_cohort_invariants <- function(cohort, expected = default_cohort_expectations()) {
+assert_cohort_invariants <- function(cohort,
+                                     expected = default_cohort_expectations()) {
   v <- character(0)
   n <- nrow(cohort)
-  if (n < expected$n_min) v <- c(v, sprintf("n=%d below n_min=%d", n, expected$n_min))
-  if (n > expected$n_max) v <- c(v, sprintf("n=%d above n_max=%d", n, expected$n_max))
+  if (n < expected$n_min) {
+    v <- c(v, sprintf("n=%d below n_min=%d", n, expected$n_min))
+  }
+  if (n > expected$n_max) {
+    v <- c(v, sprintf("n=%d above n_max=%d", n, expected$n_max))
+  }
 
   rate <- mean(cohort$hospital_expire_flag, na.rm = TRUE)
   if (rate < expected$mortality_rate[1]) {
-    v <- c(v, sprintf("mortality=%.4f below lower=%.4f", rate, expected$mortality_rate[1]))
+    v <- c(v, sprintf("mortality=%.4f below lower=%.4f",
+                      rate, expected$mortality_rate[1]))
   }
   if (rate > expected$mortality_rate[2]) {
-    v <- c(v, sprintf("mortality=%.4f above upper=%.4f", rate, expected$mortality_rate[2]))
+    v <- c(v, sprintf("mortality=%.4f above upper=%.4f",
+                      rate, expected$mortality_rate[2]))
   }
 
   age_rng <- range(cohort$age_years, na.rm = TRUE)
@@ -258,11 +278,13 @@ assert_cohort_invariants <- function(cohort, expected = default_cohort_expectati
 
   if (isTRUE(expected$distinct_subject) &&
       data.table::uniqueN(cohort$subject_id) != nrow(cohort)) {
-    v <- c(v, "first-stay-per-patient invariant violated (duplicate subject_id)")
+    v <- c(v, paste0("first-stay-per-patient invariant violated ",
+                     "(duplicate subject_id)"))
   }
 
   if (length(v) > 0L) {
-    stop("Cohort invariants failed:\n - ", paste(v, collapse = "\n - "), call. = FALSE)
+    stop("Cohort invariants failed:\n - ",
+         paste(v, collapse = "\n - "), call. = FALSE)
   }
   invisible(TRUE)
 }

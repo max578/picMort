@@ -11,8 +11,9 @@ fit_xgboost(features, train_idx, grid = NULL, nfolds = 5L, seed = 20260508L)
 
 \item{train_idx}{Integer vector of training-row indices.}
 
-\item{grid}{\code{data.frame} of hyperparameter combinations. If \code{NULL},
-uses the canonical 4-row grid documented in \code{vignettes/paper1_baseline.Rmd}.}
+\item{grid}{\code{data.frame} of hyperparameter combinations. If \code{NULL}, uses
+the canonical 4-row grid documented in
+\code{vignettes/paper1_baseline.Rmd}.}
 
 \item{nfolds}{Inner CV folds; default 5.}
 
