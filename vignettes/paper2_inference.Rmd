@@ -1,33 +1,130 @@
 ---
-title: "P2 --- Honest finite-sample inference for paediatric mortality probability"
-author: "Max Moldovan, [Stats PhD student], Usman Iqbal"
-date: "2026-05-08"
+title: "P2 inference --- globally-optimal CIs for clinical predicted probabilities (scaffold)"
+author: "Max Moldovan (lead), Stats PhD student, Usman Iqbal"
+date: "2026-05-17"
 output:
   rmarkdown::html_vignette:
     toc: true
+    toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{P2 --- inductive-CI inference}
+  %\VignetteIndexEntry{P2 inference --- inductive-CI scaffold}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-> **Subtitle.** Manuscript draft (vignette form) --- opens after P1 G6. Authors: Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474, lead), Stats PhD student (TBD), Usman Iqbal (Bond, senior).
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+## Vignette-wide: do not execute illustrative chunks at build time.
+knitr::opts_chunk$set(eval=FALSE)
+```
 
-# Status
+> **Status --- placeholder.** This vignette is a pre-publication scaffold
+> for P2 of the picMort series. The methodological draft is not yet
+> written; this file describes the contribution, points to the P2-ready
+> artefacts produced by P1, and sketches the form of the inductive-CI
+> machinery so a future session can pick the work up cleanly. No code
+> chunk is executed at vignette-build time (chunks are tagged with
+> `eval=FALSE` in the setup block above). The vignette will be replaced
+> with a runnable end-to-end illustration once the methodology lands.
 
-Placeholder. Authoring begins after P1 reaches gate G6 (discrimination
-+ subgroups). Inherits cohort and feature pipeline from P1.
+# Methodological contribution
 
-# Wedge
+P2 applies Max Moldovan's globally-optimal / inductive confidence-interval
+framework to inference on **predicted probabilities** from a clinical
+prediction model, and benchmarks it against the Bayesian credible
+intervals delivered by the regularised-horseshoe fit in P1.
 
-Apply Max's inductive / globally-optimal CIs to predicted-probability
-inference. Re-analyse P1's headline claims and quantify how many
-spurious model-comparison conclusions in the prior literature would
-collapse under principled finite-sample inference.
+The wedge is finite-sample honesty. Standard practice for predicted-
+probability uncertainty in clinical machine learning is one of (i)
+bootstrap percentile intervals, which under-cover at small *n* and on
+extreme probabilities; (ii) Bayesian credible intervals, which inherit
+the prior and the model class; or (iii) no intervals at all. The
+inductive framework constructs a confidence region that is optimal under
+the worst-case data-generating distribution in a specified neighbourhood
+of the empirical distribution, with finite-sample coverage guarantees
+that do not depend on asymptotics or prior choice.
 
-# Plan stub
+The target venue is *Statistics in Medicine* (methods lead), with a
+clinical mirror submission to a paediatric or critical-care journal once
+the method paper is in press.
 
-- Inherit `cohort` and `features` from `_targets.R`.
-- Add inductive-CI machinery as new `R/` module.
-- Re-analyse P1's calibration and DCA outputs.
-- Compare against bootstrap percentile and BCa as the field default.
+# Inheritance from P1
+
+P2 is gated on P1's calibration and decision-curve results landing. The
+cohort and feature pipeline are inherited verbatim from
+`vignette("cohort_spec", package = "picMort")` and the manuscript at
+`../../deliverables/pccm_submission_pkg_v2/manuscript_pccm.pdf`. The
+saved P1 artefacts that P2 will consume:
+
+- `../../scripts/_outputs/fits_g4.rds` --- the three fitted models from
+  P1 Gate G4 (elastic net, XGBoost, Bayesian horseshoe).
+- `../../scripts/_outputs/evaluation_g5_g6.rds` --- the evaluation suite
+  from Gates G5 (calibration + DCA) and G6 (discrimination + subgroups),
+  including the predicted-probability vectors on the held-out fold.
+
+These pointers are documented for the next session; the files are
+*not* loaded at vignette-build time. They live outside the package
+source tree and may not be present in the build sandbox or the r-universe
+binary.
+
+# Form of the inductive-CI machinery
+
+The shape of the API is sketched below for orientation. The
+implementation will live in a new `R/inductive_ci.R` module once the
+mathematics has been written up and externally reviewed.
+
+```{r form-sketch}
+#' Globally-optimal CI for a predicted probability
+#'
+#' Constructs a confidence region for the conditional probability
+#' P(Y = 1 | X = x_*) under finite-sample coverage in the
+#' inductive-conformal sense.
+#'
+#' @param model A fitted model object understood by `predict_mortality()`.
+#' @param new_data New `data.table` of test-fold patients (same schema as
+#'   `features$x` in P1).
+#' @param calibration Held-out calibration fold (a list with `x`, `y` of
+#'   the same shape as P1's `features`). Required for the inductive
+#'   construction.
+#' @param level Nominal coverage level. Default `0.95`.
+#'
+#' @return A `data.table` aligned to `nrow(new_data)` with columns
+#'   `prob`, `lower`, `upper`, `width`, and `coverage_basis`
+#'   (`"inductive"` or `"asymptotic_fallback"`).
+inductive_ci <- function(model, new_data, calibration, level = 0.95) {
+  ## Implementation deferred to P2 G2.
+  ## Will share the prep / bake plumbing used in predict_mortality() so
+  ## the same fitted model can carry either the Bayesian credible
+  ## interval (from P1) or the inductive interval (from P2) without
+  ## refitting.
+  NULL
+}
+```
+
+# Open methodological items
+
+1. **Conformal score choice.** Default candidates: log-loss residual,
+   Brier residual, and a calibration-residual score. The choice
+   interacts with whether the inductive band reduces neatly to the
+   patient-level Bayesian CrI under exchangeability assumptions.
+2. **Stratified vs marginal coverage.** Clinical use typically wants
+   per-subgroup coverage (age strata, surgical / medical, primary ICD
+   chapter). The inductive construction admits stratified coverage
+   directly; the benchmarking section needs to compare against
+   stratified bootstrap and stratified Bayesian credible intervals on
+   the same partition.
+3. **Comparison metric.** The natural pair is (mean width, empirical
+   coverage). Add a *width-vs-coverage* frontier across nominal levels
+   `c(0.80, 0.90, 0.95, 0.99)` to expose the regime where the inductive
+   construction wins materially.
+
+# Next concrete step
+
+When P2 reopens, the smallest action is: load `fits_g4.rds` and
+`evaluation_g5_g6.rds` from the P1 outputs, extract the held-out fold's
+predicted probabilities and the calibration partition, and prototype
+`inductive_ci()` against the Bayesian CrIs already in
+`pred_bh$prob_lower` / `pred_bh$prob_upper`. P1 reports a mean Bayesian
+CrI width of 0.083 on the held-out fold; the inductive construction
+needs to beat that envelope at matched coverage to clear the
+methodological gate.

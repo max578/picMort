@@ -1,33 +1,135 @@
 ---
-title: "P3 --- Do Chinese paediatric clinical notes add signal beyond structured features?"
-author: "[Computational PhD student], Max Moldovan, Usman Iqbal"
-date: "2026-05-08"
+title: "P3 fusion --- two-tower structured + Chinese clinical-note model (scaffold)"
+author: "Computational PhD student (lead), Max Moldovan, Usman Iqbal"
+date: "2026-05-17"
 output:
   rmarkdown::html_vignette:
     toc: true
+    toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{P3 --- multi-modal fusion}
+  %\VignetteIndexEntry{P3 fusion --- two-tower scaffold}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-> **Subtitle.** Manuscript draft (vignette form) --- opens after P1 G6 + EMR_SYMPTOMS audit. Authors: Computational PhD student (Bond, lead), Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474), Usman Iqbal (Bond, senior).
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+## Vignette-wide: do not execute illustrative chunks at build time.
+knitr::opts_chunk$set(eval=FALSE)
+```
 
-# Status
+> **Status --- placeholder.** This vignette is a pre-publication scaffold
+> for P3 of the picMort series. The methodological work is gated on two
+> independent items: (a) a one-day audit of the PIC v1.1.0
+> `EMR_SYMPTOMS` table to confirm content type and coverage, and (b)
+> clarification of paper attribution given that an external collaborator
+> already holds an LLM workstream on free-text notes (see
+> `usman_feedback_scope_gap_2026-05-11`). The vignette will be replaced
+> with a runnable two-tower illustration once both items resolve. No
+> code chunk is executed at vignette-build time.
 
-Placeholder. Pre-requisite: one-day audit of `EMR_SYMPTOMS.csv`
-(language, structure, coverage). Authoring begins after P1 G6 and the
-audit, whichever is later.
+# Methodological contribution
 
-# Wedge
+P3 evaluates whether Chinese clinical-note embeddings from PIC v1.1.0's
+`EMR_SYMPTOMS` table add discriminative or calibration signal **beyond**
+the structured first-24-hour feature panel that P1 establishes. The
+proposed architecture is a two-tower model:
 
-Two-tower fusion: structured (P1) + Chinese clinical-text embeddings.
-Gated on the first-24h structured baseline from P1; the question is
-specifically the *incremental* value of text.
+- **Structured tower.** The P1 baseline pipeline frozen at the
+  best-calibrated model from P1's evaluation (likely the Bayesian
+  regularised-horseshoe fit on calibration grounds, pending P1 G6).
+- **Text tower.** Token-level or sentence-level embeddings of
+  `EMR_SYMPTOMS` entries dated $\le T_0 + 24$ h, encoded by a
+  pre-trained Chinese clinical language model (candidate: MC-BERT or a
+  Chinese biomedical BERT variant; the exact backbone is locked at P3
+  Gate G2).
+- **Fusion head.** A small calibration-aware fusion layer (concatenation
+  + low-rank interaction + temperature scaling) that produces a single
+  probability of in-hospital mortality, with patient-level uncertainty
+  retained from the structured tower's Bayesian fit.
 
-# Open audit items (do before scoping)
+The reporting standard is calibration-first, the same contract as P1:
+calibration slope / intercept / ICI plus decision-curve net benefit at
+5 %, 10 %, 20 % thresholds are the headline. Discrimination metrics
+serve a supporting role. The two-tower fusion claim must clear *both*
+calibration and net-benefit gates relative to the structured-only
+baseline --- a discrimination-only gain is not the finding.
 
-- Language confirmation (Chinese? template-filled?).
-- Structure (free text vs structured codes).
-- Coverage (what fraction of cohort has any entry within $T_0 + 24$ h?).
-- Temporal hygiene (no post-window leakage; same audit machinery as P1).
+The target venue is *npj Digital Medicine* or *Lancet Digital Health*
+(clinical machine learning lead), with *JAMIA* as a secondary route.
+
+# Open gating items
+
+## (a) `EMR_SYMPTOMS` audit
+
+Before any text tower is trained, PIC v1.1.0's `EMR_SYMPTOMS` table needs
+a one-day audit answering four questions:
+
+1. **Language.** Is the text genuinely free-form Chinese clinical
+   narrative, or is it template-filled / structured-disguised-as-text?
+   The vignette working title in `vignettes/paper3_fusion.Rmd` assumes
+   the former; the latter demotes the contribution materially.
+2. **Structure.** Free text vs structured codes vs hybrid. Determines
+   whether a language-model embedding even applies as the encoding
+   choice.
+3. **Coverage.** What fraction of the cohort has any `EMR_SYMPTOMS`
+   entry dated within $[T_0, T_0 + 24)$ h? If coverage is sparse, the
+   fusion claim becomes a missingness-handling claim instead.
+4. **Temporal hygiene.** No post-window entries leak into the text
+   tower. The same `audit_no_leakage()` machinery from P1 extends to
+   the text-event provenance once a per-event timestamp column is
+   confirmed.
+
+## (b) Paper attribution
+
+A note in the series' working memory
+(`usman_feedback_scope_gap_2026-05-11`) records that an external
+collaborator already holds an LLM workstream on free-text clinical
+notes. The P3 paper-attribution is therefore **open**: the picMort
+team's P3 may fold into that workstream as co-authorship, audit the
+collaborator's pipeline against the calibration-first contract, or
+remain an independent contribution depending on what has already been
+delivered. The next session must ask before scoping P3 further.
+
+# Pre-audit sketch of the structured tower API
+
+The structured tower reuses P1 verbatim. The fusion API will live in a
+new `R/fusion.R` module once the audit confirms the text-tower
+direction.
+
+```{r form-sketch}
+#' Two-tower fusion of structured + text predictions
+#'
+#' Combines a structured-tower fit (any object from `fit_elastic_net()`,
+#' `fit_xgboost()`, or `fit_bayes_horseshoe()`) with a frozen text-tower
+#' embedding model into a single calibrated mortality prediction.
+#'
+#' @param structured_model A fitted structured model from P1.
+#' @param text_embeddings A `data.table` keyed on `icustay_id` carrying
+#'   pre-computed text-tower embeddings (one row per cohort patient,
+#'   one column per embedding dimension).
+#' @param fusion One of `"concat"` (default --- linear combination on
+#'   the logit scale), `"low_rank"` (rank-r bilinear interaction), or
+#'   `"calibration_only"` (text features used only for temperature
+#'   scaling, never for a separate score). The third option is the
+#'   pre-registered null fusion against which the first two must clear
+#'   a calibration + DCA gate.
+#'
+#' @return An object compatible with `predict_mortality()`.
+fit_two_tower <- function(structured_model, text_embeddings,
+                          fusion = c("concat", "low_rank", "calibration_only")) {
+  ## Implementation deferred to P3 G3 (post-audit).
+  NULL
+}
+```
+
+# Next concrete step
+
+When P3 reopens, the smallest action is to land the `EMR_SYMPTOMS`
+audit. The audit script does not need to live inside `picMort` ---
+it inherits the cohort builder via `pic_paths()$emr_symptoms` and
+produces a short audit report. Until the audit answers the four
+questions above and the collaborator attribution is resolved, this
+vignette is the correct shape: a placeholder that documents the
+contribution and the gates rather than running code that would mislead
+about what has been done.

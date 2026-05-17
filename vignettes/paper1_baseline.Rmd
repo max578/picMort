@@ -1,80 +1,286 @@
 ---
-title: "P1 --- Clean prediction-window mortality model on PIC v1.1.0"
-author: "[PhD student], Max Moldovan, Usman Iqbal"
-date: "2026-05-08"
+title: "P1 baseline --- toy-cohort illustration of the calibration-first pipeline"
+author: "PhD student (lead), Max Moldovan, Usman Iqbal"
+date: "2026-05-17"
 output:
   rmarkdown::html_vignette:
     toc: true
+    toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{P1 --- clean prediction-window baseline}
+  %\VignetteIndexEntry{P1 baseline --- toy-cohort illustration}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-> **Subtitle.** Manuscript draft (vignette form). Authors: PhD student (Bond, lead), Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474), Usman Iqbal (Bond, senior).
->
-> **Abstract.** *To be drafted at gates G4–G7.* Headline framing: calibration + decision-curve analysis on PIM3 vs penalised logistic regression vs XGBoost, with the prediction-window leakage defects of the prior literature explicitly fixed.
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  fig.width = 6,
+  fig.height = 4,
+  fig.align = "center"
+)
+set.seed(20260517L)
+```
 
-# Status
+> **Scope.** This vignette mirrors the P1 paediatric ICU mortality pipeline
+> end-to-end on a small synthetic cohort (`inst/extdata/toy_cohort.rds`,
+> n = 80, mortality = 10 %). Numbers shown here are illustrative; they do
+> not reproduce P1 manuscript results. The full pipeline on PIC v1.1.0
+> (n = 8,736) lives at
+> `../../deliverables/pccm_submission_pkg_v2/manuscript_pccm.pdf`.
 
-Draft scaffold. Sections populated progressively as gates land:
+# What this vignette demonstrates
 
-- **G1 cohort** → §Methods.Cohort, §Results.Attrition
-- **G2 features + leakage audit** → §Methods.Features
-- **G3 PIM3** → §Methods.Baseline, §Results.PIM3
-- **G4 fits + calibration** → §Results.Calibration (headline)
-- **G5 DCA** → §Results.Decision-curve (headline)
-- **G6 discrimination + subgroups** → §Results.Discrimination
-- **G7 TRIPOD-AI compliance** → §Methods, §Supplementary
-- **G8 reproducibility** → §Methods.Reproducibility
+The calibration-first contract for `picMort` runs through four stages:
 
-The cohort specification is inherited verbatim from `cohort_spec.Rmd`.
-This vignette does not redefine the cohort.
+1. **Cohort.** First ICU stay per patient, age 0--18 y, in-hospital
+   mortality outcome --- the frozen contract from `vignette("cohort_spec",
+   package = "picMort")`. The toy cohort obeys the same schema and the
+   same invariants, downsized to keep the vignette fast.
+2. **Features.** T<sub>0</sub> + 24 h prediction window, demographics
+   plus vitals and labs aggregated by `min` / `max` / `mean` / `last`,
+   no length-of-stay, no discharge-time, no post-window leakage. On PIC
+   v1.1.0 this is `build_features(cohort, pic_paths())`; here, because
+   the toy cohort ships without raw `CHARTEVENTS` / `LABEVENTS`, the
+   vignette synthesises a small, deterministic feature matrix with the
+   same shape and column conventions so the downstream pipeline is
+   exercised faithfully. The synthesis routine is local to this vignette
+   --- production runs go through `build_features()`.
+3. **Models.** Penalised logistic regression (elastic net), XGBoost, and
+   Bayesian logistic regression with a regularised-horseshoe prior. The
+   Bayesian model is the JTM clinical-functional wedge: every patient
+   carries a posterior 95 % credible interval on predicted mortality.
+4. **Evaluation.** Calibration suite (slope, intercept, ICI,
+   calibration-in-the-large) and decision-curve analysis at 5 %, 10 %,
+   20 % thresholds are the manuscript headline. Discrimination metrics
+   (AUROC, AUPRC, Brier, Brier skill score) are supporting.
 
-# Background
+```{r libs, message = FALSE, warning = FALSE}
+library(picMort)
+library(data.table)
+```
 
-[To be written at G1. Frame: paediatric ICU mortality prediction; LOS
-leakage in the prior literature; PIM3 as the principled comparator;
-calibration + DCA as the headline framing.]
+# Stage 1 --- load the toy cohort
 
-# Methods
+```{r cohort}
+toy_cohort_path <- system.file("extdata", "toy_cohort.rds", package = "picMort")
+cohort <- readRDS(toy_cohort_path)
+dim(cohort)
+table(mortality = cohort$hospital_expire_flag)
+```
 
-## Cohort
+The toy cohort obeys the same invariants as the production cohort, scaled
+to a smaller envelope (50--150 rows, mortality 5--20 %).
 
-See `vignettes/cohort_spec.Rmd`. Brief recap in the manuscript.
+```{r cohort-invariants}
+toy_expectations <- list(
+  n_min            = 50L,
+  n_max            = 150L,
+  mortality_rate   = c(0.05, 0.20),
+  age_range_years  = c(0, 18),
+  sex_levels       = c("F", "M"),
+  distinct_subject = TRUE,
+  no_overlap_stays = TRUE
+)
+assert_cohort_invariants(cohort, expected = toy_expectations)
+```
 
-## Features
+# Stage 2 --- build a small illustrative feature matrix
 
-See `R/features.R`. T<sub>0</sub> + 24 h lock; `audit_no_leakage()` enforced.
+On PIC v1.1.0 the call is
+`features <- build_features(cohort, pic_paths(), window_hours = 24L)`. The
+toy cohort ships without raw event tables, so this vignette assembles a
+matrix of the same shape from the cohort columns plus deterministic
+synthetic vitals and labs. The hard rule is identical to production:
+**no LOS, no discharge-time, no post-window timestamp ever enters the
+feature matrix.**
 
-## Baseline (PIM3)
+```{r synth-features}
+make_toy_features <- function(cohort, seed = 20260517L) {
+  set.seed(seed)
+  n <- nrow(cohort)
+  baseline_hr  <- 130 - 4 * pmin(cohort$age_years, 15) + stats::rnorm(n, 0, 8)
+  baseline_rr  <- 40  - 1.5 * pmin(cohort$age_years, 15) + stats::rnorm(n, 0, 4)
+  baseline_sbp <- 80  + 2.5 * pmin(cohort$age_years, 15) + stats::rnorm(n, 0, 10)
+  baseline_spo2 <- pmin(100, 97 + stats::rnorm(n, 0, 1.5))
+  baseline_lactate <- pmax(0.5, 1.4 + 0.6 * cohort$hospital_expire_flag +
+                             stats::rnorm(n, 0, 0.4))
 
-See `R/pim3.R`.
+  x <- data.table::data.table(
+    icustay_id          = cohort$icustay_id,
+    age_months          = cohort$age_months,
+    age_years           = cohort$age_years,
+    sex_male            = as.integer(cohort$sex == "M"),
+    is_surgical         = as.integer(cohort$is_surgical),
+    primary_icd_chapter = cohort$primary_icd_chapter,
+    hr_min              = baseline_hr - abs(stats::rnorm(n, 5, 2)),
+    hr_max              = baseline_hr + abs(stats::rnorm(n, 8, 3)),
+    hr_mean             = baseline_hr,
+    hr_last             = baseline_hr + stats::rnorm(n, 0, 4),
+    rr_min              = baseline_rr - abs(stats::rnorm(n, 2, 1)),
+    rr_max              = baseline_rr + abs(stats::rnorm(n, 3, 1)),
+    rr_mean             = baseline_rr,
+    rr_last             = baseline_rr + stats::rnorm(n, 0, 2),
+    sbp_min             = baseline_sbp - abs(stats::rnorm(n, 6, 2)),
+    sbp_max             = baseline_sbp + abs(stats::rnorm(n, 8, 2)),
+    sbp_mean            = baseline_sbp,
+    sbp_last            = baseline_sbp + stats::rnorm(n, 0, 5),
+    spo2_min            = pmin(100, baseline_spo2 - abs(stats::rnorm(n, 2, 1))),
+    spo2_max            = pmin(100, baseline_spo2 + abs(stats::rnorm(n, 1, 0.5))),
+    spo2_mean           = baseline_spo2,
+    spo2_last           = pmin(100, baseline_spo2 + stats::rnorm(n, 0, 1)),
+    lactate_min         = baseline_lactate - abs(stats::rnorm(n, 0.2, 0.1)),
+    lactate_max         = baseline_lactate + abs(stats::rnorm(n, 0.4, 0.2)),
+    lactate_last        = baseline_lactate + stats::rnorm(n, 0, 0.2)
+  )
 
-## Models
+  list(
+    x            = x,
+    y            = as.integer(cohort$hospital_expire_flag),
+    window_hours = 24L,
+    feature_set  = "toy"
+  )
+}
 
-Penalised logistic regression (elastic net) and XGBoost. Hyperparameter
-search via inner 5-fold CV; canonical small grids documented in the
-package vignette and frozen at study start.
+features <- make_toy_features(cohort)
+dim(features$x)
+```
 
-## Evaluation
+`features$x` carries the `icustay_id` join key plus demographics, vitals
+and a single representative lab. Production runs ship dozens more lab
+panels; the shape is otherwise identical to `build_features()` output.
 
-Calibration suite (slope, intercept, ICI, calibration-in-the-large) +
-decision-curve analysis at 5%, 10%, 20% thresholds as the headline.
-AUROC, AUPRC, Brier, Brier skill score reported as supporting.
+# Stage 3 --- stratified train / test split
 
-## Reproducibility
+```{r split}
+split <- make_train_test_split(features, prop = 0.7, seed = 20260517L)
+length(split$train_idx)
+length(split$test_idx)
+```
 
-`targets::tar_make()` from raw CSVs to manuscript figures.
+# Stage 4 --- fit the three models
 
-# Results
+Run times below are intentionally aggressive to keep the vignette under
+two minutes. Production runs use wider hyperparameter grids, 1,000
+bootstrap replicates for CIs, and four MCMC chains with 4,000
+iterations for the Bayesian fit.
 
-[Populated G1–G6.]
+```{r fit-glmnet}
+fit_en <- fit_elastic_net(features, split$train_idx, seed = 20260517L)
+c(alpha = fit_en$best_alpha, lambda = fit_en$best_lambda)
+```
 
-# Discussion
+```{r fit-xgb}
+fit_xgb <- fit_xgboost(features, split$train_idx, seed = 20260517L)
+fit_xgb$best_nrounds
+```
 
-[Drafted G7.]
+```{r fit-bayes, message = FALSE, warning = FALSE, results = "hide"}
+fit_bh <- fit_bayes_horseshoe(
+  features, split$train_idx,
+  chains = 2L, iter = 500L,
+  par_ratio = 0.10, adapt_delta = 0.95,
+  seed = 20260517L
+)
+```
 
-# TRIPOD-AI checklist
+```{r fit-bayes-summary}
+fit_bh$chains
+fit_bh$iter
+```
 
-[Item-by-item; supplementary appendix.]
+# Stage 5 --- predict on the held-out fold
+
+The test fold is touched once. Predictions are aligned by
+`icustay_id`; the Bayesian model additionally returns a 95 % credible
+interval on the predicted probability for every test-fold patient.
+
+```{r predict}
+x_test <- features$x[split$test_idx, ]
+y_test <- features$y[split$test_idx]
+
+pred_en  <- predict_mortality(fit_en,  x_test)
+pred_xgb <- predict_mortality(fit_xgb, x_test)
+pred_bh  <- predict_mortality(fit_bh,  x_test)
+
+head(pred_bh, 3)
+```
+
+# Stage 6 --- evaluation (the manuscript headline)
+
+```{r eval, warning = FALSE}
+probs <- list(
+  elastic_net      = pred_en$prob_raw,
+  xgboost          = pred_xgb$prob_raw,
+  bayes_horseshoe  = pred_bh$prob_raw
+)
+
+calib <- lapply(probs, calibration_suite,
+                y = y_test, n_boot = 200L, seed = 20260517L)
+dca   <- decision_curve(probs, y_test,
+                        thresholds = c(0.05, 0.10, 0.20),
+                        plot_grid = FALSE)
+disc  <- discrimination_metrics(probs, y_test,
+                                reference = "elastic_net",
+                                n_boot = 200L, seed = 20260517L)
+```
+
+## Calibration headline
+
+```{r calib-table}
+calib_tbl <- data.table::rbindlist(lapply(names(calib), function(nm) {
+  data.table::data.table(
+    model     = nm,
+    slope     = calib[[nm]]$slope[["estimate"]],
+    intercept = calib[[nm]]$intercept[["estimate"]],
+    ici       = calib[[nm]]$ici[["estimate"]],
+    cit_large = calib[[nm]]$cit_large[["estimate"]]
+  )
+}))
+knitr::kable(calib_tbl, digits = 3,
+             caption = "Calibration on the toy-cohort held-out fold.")
+```
+
+## Decision-curve net benefit at clinically relevant thresholds
+
+```{r dca-table}
+dca_headline <- dca[threshold %in% c(0.05, 0.10, 0.20) & type == "model"]
+knitr::kable(dca_headline, digits = 4,
+             caption = "Net benefit at 5%, 10%, 20% thresholds.")
+```
+
+## Discrimination (supporting)
+
+```{r disc-table}
+knitr::kable(disc, digits = 3,
+             caption = "Discrimination metrics with bootstrap 95% CIs.")
+```
+
+# How this maps to the P1 manuscript
+
+This vignette walks the same four-stage pipeline that drives the P1
+*Pediatric Critical Care Medicine* manuscript bundle at
+`deliverables/pccm_submission_pkg_v2/manuscript_pccm.pdf`. The
+production bundle:
+
+- runs on PIC v1.1.0 (n = 8,736, mortality 0.0844) rather than the 80-row
+  toy cohort,
+- uses the full feature panel from `build_features()` (vitals + labs from
+  `CHARTEVENTS` and `LABEVENTS`, 13 panels) under the same T<sub>0</sub>
+  + 24 h prediction window,
+- adds the PIM3 baseline reconstructed via `compute_pim3()` (Gate G3),
+- runs the Bayesian fit with four chains and 4,000 iterations, with
+  patient-level 95 % credible intervals as the clinical-functional
+  headline,
+- reports calibration and decision-curve analysis as the primary
+  outcome, with discrimination supporting.
+
+Numbers in the tables above are not stable across runs of the toy
+synthesiser and must not be quoted in any paper. The toy cohort exists
+to let `R CMD check` exercise the package surface end-to-end and to give
+new contributors a runnable scaffold.
+
+```{r session}
+sessionInfo()
+```
