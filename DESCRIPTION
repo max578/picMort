@@ -1,6 +1,6 @@
 Package: picMort
-Title: Reproducible Paediatric ICU Mortality Benchmark on PIC v1.1.0
-Version: 0.0.0.9000
+Title: Reproducible Paediatric ICU Mortality Benchmark on PIC V1.1.0
+Version: 0.1.0
 Authors@R: c(
     person("Max", "Moldovan", email = "max.moldovan@adelaide.edu.au",
            role = c("aut", "cre"),
@@ -28,7 +28,7 @@ Imports:
     recipes (>= 1.0),
     rsample (>= 1.2),
     ggplot2 (>= 3.5),
-    rlang,
+    lifecycle,
     stats,
     utils,
     fs,
