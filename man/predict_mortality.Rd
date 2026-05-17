@@ -17,11 +17,35 @@ PIM3 \code{data.table} from \code{\link[=compute_pim3]{compute_pim3()}}.}
 A \code{data.table} aligned to \code{nrow(new_data)}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Routes to the appropriate predict implementation based on
 \code{model$type}. Returns a \code{data.table} with columns:
 \itemize{
 \item \code{prob_raw}         -- model output (probability of in-hospital mortality)
 \item \code{prob_calibrated}  -- post-hoc calibrated (only XGBoost; same as raw otherwise)
 \item \code{prob_lower}, \code{prob_upper} -- 95 \% credible interval (Bayesian only)
+}
+}
+\examples{
+# PIM3 dispatch branch: predict_mortality() also accepts the PIM3
+# data.table returned by compute_pim3(), bypassing model fits.
+toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+                           package = "picMort"))
+pim3_tbl <- data.table::data.table(
+  icustay_id = toy$icustay_id,
+  pim3       = stats::plogis(stats::rnorm(nrow(toy), mean = -2.5, sd = 0.5))
+)
+preds <- predict_mortality(pim3_tbl, toy[1:5, ])
+preds
+
+\dontrun{
+# Full model-fit dispatch (requires the registered PIC data)
+paths    <- pic_paths()
+cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+features <- build_features(cohort, paths, window_hours = 24L)
+split    <- make_train_test_split(features)
+fit      <- fit_elastic_net(features, split$train_idx)
+predict_mortality(fit, features$x[split$test_idx, ])
 }
 }

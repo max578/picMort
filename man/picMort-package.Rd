@@ -4,7 +4,7 @@
 \name{picMort-package}
 \alias{picMort}
 \alias{picMort-package}
-\title{picMort: Reproducible Paediatric ICU Mortality Benchmark on PIC v1.1.0}
+\title{picMort: Reproducible Paediatric ICU Mortality Benchmark on PIC V1.1.0}
 \description{
 Tools and pipelines for the PICU mortality + LLM paper series (P1 baseline, P2 inductive-CI inference, P3 multi-modal fusion). Authoritative cohort specification, T+24h prediction-window feature extraction, PIM3 reconstruction, calibration and decision-curve evaluation. The package is the methodological substrate for the series; individual papers are drafted as vignettes.
 }
@@ -12,6 +12,7 @@ Tools and pipelines for the PICU mortality + LLM paper series (P1 baseline, P2 i
 Useful links:
 \itemize{
   \item \url{https://github.com/max578/picMort}
+  \item \url{https://max578.github.io/picMort}
   \item Report bugs at \url{https://github.com/max578/picMort/issues}
 }
 

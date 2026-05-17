@@ -18,6 +18,8 @@ distribution stats), \code{oe_ratio}, \code{oe_ci} (Wilson 95\% CI),
 \code{risk_group_counts} (table), \code{notes} (character).
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Reports the distribution of reconstructed PIM3 probabilities, the
 observed-vs-expected (O/E) ratio against actual cohort mortality,
 and a summary of which components defaulted to proxy values. The
@@ -25,4 +27,25 @@ result is informational, not a hard gate -- imperfect PIM3
 reconstruction is normal when all components are not recoverable
 from the source database; the manuscript Limitations records
 which components were proxied.
+}
+\examples{
+toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+                           package = "picMort"))
+# Build a minimal synthetic pim3 table matching compute_pim3()'s schema.
+set.seed(20260517L)
+pim3_tbl <- data.table::data.table(
+  icustay_id  = toy$icustay_id,
+  pim3_logit  = stats::rnorm(nrow(toy), mean = -2.5, sd = 0.5),
+  pim3        = stats::plogis(stats::rnorm(nrow(toy), -2.5, 0.5)),
+  risk_group  = factor(sample(c("default", "low", "high", "very_high"),
+                              nrow(toy), replace = TRUE,
+                              prob = c(0.7, 0.2, 0.08, 0.02)),
+                       levels = c("default", "low", "high", "very_high")),
+  sbp_used    = stats::rnorm(nrow(toy), 110, 20),
+  proxy_flags = replicate(nrow(toy),
+                          c("fio2_pao2", "base_excess"), simplify = FALSE)
+)
+fv <- pim3_face_validity(pim3_tbl, toy)
+fv$summary
+fv$oe_ratio
 }

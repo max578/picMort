@@ -22,8 +22,26 @@ Named list with elements \code{admissions}, \code{patients}, \code{icustays},
 \code{or_exam_reports}, \code{emr_symptoms}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Returns a named list of canonical paths to PIC CSVs, resolved through
 the project-local \verb{data_links/pic_v110/} symlink. The package never
 embeds the Box-synced source path; the symlink is the single point of
 indirection.
+}
+\examples{
+# Requires the registered PIC v1.1.0 source linked at
+# `<project root>/data_links/pic_v110/`. Run `check = FALSE` to inspect
+# the expected file names without touching disk.
+\dontrun{
+paths <- pic_paths()
+names(paths)
+}
+
+# File-name discovery without verifying existence
+tmp <- tempfile(); dir.create(file.path(tmp, "data_links", "pic_v110"),
+                              recursive = TRUE)
+paths <- pic_paths(root = tmp, check = FALSE)
+names(paths)
+unlink(tmp, recursive = TRUE)
 }

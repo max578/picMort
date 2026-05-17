@@ -13,8 +13,17 @@ pim3_risk_group(code)
 Character vector of risk-group labels (or \code{NA}).
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Maps an ICD-10 code to one of \code{"low"}, \code{"high"}, \code{"very_high"},
 or \code{NA_character_} (no risk-group assignment). Covers the most
 frequent paediatric admissions per Straney 2013 Tables 2-4. Codes
 not in the lookup return \code{NA}, treated as default-risk for PIM3.
+}
+\examples{
+pim3_risk_group(c("J45.0",   # asthma -> low
+                  "I42.1",   # cardiomyopathy -> high
+                  "I46",     # post-cardiac-arrest -> very_high
+                  "K52.901", # unmapped -> NA
+                  NA_character_))
 }

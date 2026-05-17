@@ -3,6 +3,8 @@
 
 ## usethis namespace: start
 #' @importFrom data.table data.table
+#' @importFrom lifecycle deprecated
+#' @importFrom utils globalVariables
 ## usethis namespace: end
 NULL
 

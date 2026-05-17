@@ -25,16 +25,27 @@ reserved for sensitivity analysis).}
 \value{
 A list with elements:
 \itemize{
-\item \code{x}      — feature \code{data.table} keyed on \code{icustay_id}
-\item \code{y}      — outcome integer vector aligned to \code{x$icustay_id}
-\item \code{dict}   — feature dictionary (\code{data.table})
-\item \code{audit}  — result of \code{\link[=audit_no_leakage]{audit_no_leakage()}} (TRUE on pass)
+\item \code{x}      - feature \code{data.table} keyed on \code{icustay_id}
+\item \code{y}      - outcome integer vector aligned to \code{x$icustay_id}
+\item \code{dict}   - feature dictionary (\code{data.table})
+\item \code{audit}  - result of \code{\link[=audit_no_leakage]{audit_no_leakage()}} (TRUE on pass)
 \item \code{window_hours}, \code{feature_set}
 }
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Extracts demographics (from cohort), vitals (\code{CHARTEVENTS}), and
 labs (\code{LABEVENTS}) within \code{window_hours} of ICU admission. \strong{No
 feature uses any timestamp at or after \code{intime + window_hours}.}
 \code{\link[=audit_no_leakage]{audit_no_leakage()}} runs as a runtime invariant.
+}
+\examples{
+\dontrun{
+paths    <- pic_paths()
+cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+features <- build_features(cohort, paths, window_hours = 24L)
+dim(features$x)
+table(features$y)
+}
 }

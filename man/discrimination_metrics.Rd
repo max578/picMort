@@ -29,6 +29,17 @@ score reference. Default \code{"pim3"} if present, else first model.}
 A \code{data.table} of (model, metric, estimate, lower, upper).
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 AUROC, AUPRC, Brier score, and Brier skill score relative to a
 reference model.
+}
+\examples{
+set.seed(20260517L)
+n <- 200L
+p_a <- stats::plogis(stats::rnorm(n, -2, 1))
+p_b <- stats::plogis(stats::rnorm(n, -2, 1.4))
+y   <- stats::rbinom(n, 1L, (p_a + p_b) / 2)
+discrimination_metrics(list(model_a = p_a, model_b = p_b), y,
+                       reference = "model_a", n_boot = 50L)
 }

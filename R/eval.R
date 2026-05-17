@@ -15,6 +15,9 @@
 
 #' Calibration suite (the manuscript headline)
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Computes calibration slope, intercept, integrated calibration index
 #' (ICI), calibration-in-the-large, and a smoothed calibration curve
 #' (`loess`). Bootstrap percentile CIs (1,000 reps default) on every
@@ -39,6 +42,16 @@
 #' @return A list with elements `slope`, `intercept`, `ici`, `cit_large`
 #'   (each named `c(estimate, lower, upper)`), `curve` (a `data.frame`
 #'   for plotting), and `n`, `n_events`.
+#'
+#' @examples
+#' set.seed(20260517L)
+#' n <- 200L
+#' prob <- stats::plogis(stats::rnorm(n, mean = -2, sd = 1))
+#' y    <- stats::rbinom(n, 1L, prob)
+#' cal  <- calibration_suite(prob, y, n_boot = 50L)
+#' cal$slope
+#' cal$ici
+#' head(cal$curve)
 #' @export
 calibration_suite <- function(prob, y, n_boot = 1000L, seed = 20260508L) {
   prob <- pmax(pmin(as.numeric(prob), 1 - 1e-7), 1e-7)
@@ -113,6 +126,9 @@ calibration_curve_points <- function(prob, y, ngrid = 200L) {
 
 #' Decision-curve analysis at clinically meaningful thresholds
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Computes net benefit per threshold per model alongside the
 #' "treat-all" / "treat-none" references. Net benefit is computed
 #' analytically (no external package dependency); equivalent to
@@ -127,6 +143,17 @@ calibration_curve_points <- function(prob, y, ngrid = 200L) {
 #'
 #' @return A `data.table` of (model, threshold, net_benefit, type).
 #'   `type` is `"model"`, `"all"`, or `"none"`.
+#'
+#' @examples
+#' set.seed(20260517L)
+#' n <- 200L
+#' p_a <- stats::plogis(stats::rnorm(n, -2, 1))
+#' p_b <- stats::plogis(stats::rnorm(n, -2, 1.4))
+#' y   <- stats::rbinom(n, 1L, (p_a + p_b) / 2)
+#' dca <- decision_curve(list(model_a = p_a, model_b = p_b), y,
+#'                       thresholds = c(0.05, 0.10, 0.20),
+#'                       plot_grid = FALSE)
+#' dca
 #' @export
 decision_curve <- function(probs, y,
                             thresholds = c(0.05, 0.10, 0.20),
@@ -165,6 +192,9 @@ decision_curve <- function(probs, y,
 
 #' Discrimination metrics with bootstrap CIs (supporting role)
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' AUROC, AUPRC, Brier score, and Brier skill score relative to a
 #' reference model.
 #'
@@ -177,6 +207,15 @@ decision_curve <- function(probs, y,
 #' @param seed Integer seed; default 20260508.
 #'
 #' @return A `data.table` of (model, metric, estimate, lower, upper).
+#'
+#' @examples
+#' set.seed(20260517L)
+#' n <- 200L
+#' p_a <- stats::plogis(stats::rnorm(n, -2, 1))
+#' p_b <- stats::plogis(stats::rnorm(n, -2, 1.4))
+#' y   <- stats::rbinom(n, 1L, (p_a + p_b) / 2)
+#' discrimination_metrics(list(model_a = p_a, model_b = p_b), y,
+#'                        reference = "model_a", n_boot = 50L)
 #' @export
 discrimination_metrics <- function(probs, y, reference = NULL,
                                    n_boot = 1000L, seed = 20260508L) {
@@ -240,6 +279,9 @@ simple_auprc <- function(p, y) {
 
 #' Subgroup performance table
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Reports calibration + AUROC per pre-registered subgroup: age strata
 #' (<1, 1-5, 6-12, 13-18 y), surgical vs medical, and top-3 ICD
 #' chapters by frequency. Cells with fewer than `n_min_events` events
@@ -254,6 +296,14 @@ simple_auprc <- function(p, y) {
 #'
 #' @return A `data.table` of (model, subgroup_var, level, n,
 #'   n_events, auroc, ici, cal_slope).
+#'
+#' @examples
+#' toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+#'                            package = "picMort"))
+#' set.seed(20260517L)
+#' probs <- list(model_a = stats::runif(nrow(toy)))
+#' # n_min_events = 1L because the toy cohort only has 8 deaths.
+#' subgroup_performance(probs, toy, n_min_events = 1L)
 #' @export
 subgroup_performance <- function(probs, cohort_test, n_min_events = 5L) {
   age_bin <- cut(cohort_test$age_years,
@@ -302,12 +352,26 @@ subgroup_performance <- function(probs, cohort_test, n_min_events = 5L) {
 
 #' Render the headline calibration plot
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Smoothed loess calibration curves per model with the ideal
 #' diagonal. Returns a `ggplot` object; save via `ggplot2::ggsave()`.
 #'
 #' @param calib_list Named list; each element is the output of
 #'   [calibration_suite()] for one model.
 #' @return A `ggplot` object.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   set.seed(20260517L)
+#'   n <- 200L
+#'   prob <- stats::plogis(stats::rnorm(n, -2, 1))
+#'   y    <- stats::rbinom(n, 1L, prob)
+#'   cal  <- calibration_suite(prob, y, n_boot = 25L)
+#'   p    <- plot_calibration(list(model_a = cal))
+#'   class(p)
+#' }
 #' @export
 plot_calibration <- function(calib_list) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
@@ -333,12 +397,26 @@ plot_calibration <- function(calib_list) {
 
 #' Render the headline decision-curve plot
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Net benefit vs threshold across models, with treat-all and
 #' treat-none references.
 #'
 #' @param dca A `data.table` from [decision_curve()] (with `plot_grid =
 #'   TRUE`).
 #' @return A `ggplot` object.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   set.seed(20260517L)
+#'   n <- 200L
+#'   p_a <- stats::plogis(stats::rnorm(n, -2, 1))
+#'   y   <- stats::rbinom(n, 1L, p_a)
+#'   dca <- decision_curve(list(model_a = p_a), y, plot_grid = TRUE)
+#'   p   <- plot_decision_curve(dca)
+#'   class(p)
+#' }
 #' @export
 plot_decision_curve <- function(dca) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {

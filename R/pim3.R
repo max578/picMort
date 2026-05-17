@@ -48,6 +48,9 @@ pim3_coefficients <- function() {
 
 #' PIM3 risk-group ICD-10 mapping (paediatric, simplified)
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Maps an ICD-10 code to one of `"low"`, `"high"`, `"very_high"`,
 #' or `NA_character_` (no risk-group assignment). Covers the most
 #' frequent paediatric admissions per Straney 2013 Tables 2-4. Codes
@@ -55,6 +58,13 @@ pim3_coefficients <- function() {
 #'
 #' @param code Character vector of ICD-10 codes.
 #' @return Character vector of risk-group labels (or `NA`).
+#'
+#' @examples
+#' pim3_risk_group(c("J45.0",   # asthma -> low
+#'                   "I42.1",   # cardiomyopathy -> high
+#'                   "I46",     # post-cardiac-arrest -> very_high
+#'                   "K52.901", # unmapped -> NA
+#'                   NA_character_))
 #' @export
 pim3_risk_group <- function(code) {
   out <- rep(NA_character_, length(code))
@@ -89,10 +99,25 @@ pim3_risk_group <- function(code) {
 
 #' Reconstruct PIM3 from PIC fields
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Computes the Paediatric Index of Mortality 3 (Straney et al. 2013)
 #' from PIC `CHARTEVENTS` and the `cohort` table. Components that
 #' cannot be recovered from PIC default to 0 (Straney convention) and
 #' are listed in `proxy_flags`.
+#'
+#' Demonstrating the linear-predictor calculation without PIC source files
+#' (this is what `compute_pim3()` produces internally per patient):
+#'
+#' ```r
+#' beta <- picMort:::pim3_coefficients()
+#' sbp_used <- 120
+#' logit <- beta$intercept +
+#'          beta$sbp_linear * sbp_used +
+#'          beta$sbp_abs_dev_120 * abs(sbp_used - 120)
+#' stats::plogis(logit) # baseline PIM3 risk
+#' ```
 #'
 #' @param cohort A cohort `data.table` from [build_cohort()].
 #' @param paths Output of [pic_paths()].
@@ -106,6 +131,15 @@ pim3_risk_group <- function(code) {
 #'
 #' @references Straney L et al. (2013). PIM3: an updated Paediatric
 #'   Index of Mortality. Pediatr Crit Care Med 14(7):673-681.
+#'
+#' @examples
+#' \dontrun{
+#' paths    <- pic_paths()
+#' cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+#' pim3_tbl <- compute_pim3(cohort, paths)
+#' summary(pim3_tbl$pim3)
+#' table(pim3_tbl$risk_group)
+#' }
 #' @export
 compute_pim3 <- function(cohort, paths, window_hours = 1L) {
   beta <- pim3_coefficients()
@@ -219,6 +253,9 @@ compute_pim3 <- function(cohort, paths, window_hours = 1L) {
 
 #' PIM3 face-validity check
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Reports the distribution of reconstructed PIM3 probabilities, the
 #' observed-vs-expected (O/E) ratio against actual cohort mortality,
 #' and a summary of which components defaulted to proxy values. The
@@ -234,6 +271,27 @@ compute_pim3 <- function(cohort, paths, window_hours = 1L) {
 #'   distribution stats), `oe_ratio`, `oe_ci` (Wilson 95% CI),
 #'   `proxy_freq` (table of which proxies fired and how often),
 #'   `risk_group_counts` (table), `notes` (character).
+#'
+#' @examples
+#' toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+#'                            package = "picMort"))
+#' # Build a minimal synthetic pim3 table matching compute_pim3()'s schema.
+#' set.seed(20260517L)
+#' pim3_tbl <- data.table::data.table(
+#'   icustay_id  = toy$icustay_id,
+#'   pim3_logit  = stats::rnorm(nrow(toy), mean = -2.5, sd = 0.5),
+#'   pim3        = stats::plogis(stats::rnorm(nrow(toy), -2.5, 0.5)),
+#'   risk_group  = factor(sample(c("default", "low", "high", "very_high"),
+#'                               nrow(toy), replace = TRUE,
+#'                               prob = c(0.7, 0.2, 0.08, 0.02)),
+#'                        levels = c("default", "low", "high", "very_high")),
+#'   sbp_used    = stats::rnorm(nrow(toy), 110, 20),
+#'   proxy_flags = replicate(nrow(toy),
+#'                           c("fio2_pao2", "base_excess"), simplify = FALSE)
+#' )
+#' fv <- pim3_face_validity(pim3_tbl, toy)
+#' fv$summary
+#' fv$oe_ratio
 #' @export
 pim3_face_validity <- function(pim3_tbl, cohort) {
   joined <- merge(pim3_tbl, cohort[, list(icustay_id, hospital_expire_flag)],

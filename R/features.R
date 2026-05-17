@@ -52,6 +52,9 @@ feature_panels <- function() {
 
 #' Build T+window prediction-window feature matrix
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Extracts demographics (from cohort), vitals (`CHARTEVENTS`), and
 #' labs (`LABEVENTS`) within `window_hours` of ICU admission. **No
 #' feature uses any timestamp at or after `intime + window_hours`.**
@@ -65,12 +68,20 @@ feature_panels <- function() {
 #'   reserved for sensitivity analysis).
 #'
 #' @return A list with elements:
-#'   * `x`      — feature `data.table` keyed on `icustay_id`
-#'   * `y`      — outcome integer vector aligned to `x$icustay_id`
-#'   * `dict`   — feature dictionary (`data.table`)
-#'   * `audit`  — result of [audit_no_leakage()] (TRUE on pass)
+#'   * `x`      - feature `data.table` keyed on `icustay_id`
+#'   * `y`      - outcome integer vector aligned to `x$icustay_id`
+#'   * `dict`   - feature dictionary (`data.table`)
+#'   * `audit`  - result of [audit_no_leakage()] (TRUE on pass)
 #'   * `window_hours`, `feature_set`
 #'
+#' @examples
+#' \dontrun{
+#' paths    <- pic_paths()
+#' cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+#' features <- build_features(cohort, paths, window_hours = 24L)
+#' dim(features$x)
+#' table(features$y)
+#' }
 #' @export
 build_features <- function(cohort, paths,
                            window_hours = 24L,
@@ -259,6 +270,9 @@ build_feature_dict <- function(x, panels, miss_cols, window_hours) {
 
 #' Audit feature matrix for prediction-window leakage
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Checks (i) no variable name contains a forbidden temporal token
 #' (LOS, discharge, deathtime, etc.); (ii) every dictionary entry
 #' declares the same `window_hours`; (iii) optional provenance check
@@ -272,6 +286,26 @@ build_feature_dict <- function(x, panels, miss_cols, window_hours) {
 #' @param window_hours Prediction-window length used at extraction.
 #'
 #' @return Invisibly `TRUE` on pass; raises a structured error on fail.
+#'
+#' @examples
+#' # A minimal in-spec dictionary
+#' ok_dict <- data.table::data.table(
+#'   variable       = c("age_years", "hr_min", "spo2_min"),
+#'   source         = c("cohort", "CHARTEVENTS", "CHARTEVENTS"),
+#'   transformation = c("static", "min over [0,24)h", "min over [0,24)h"),
+#'   clinical_group = c("demographics", "vitals", "vitals"),
+#'   window_hours   = 24L
+#' )
+#' audit_no_leakage(ok_dict, window_hours = 24L)
+#'
+#' # A leaky dictionary (LOS is forbidden post-window information)
+#' bad_dict <- data.table::copy(ok_dict)
+#' bad_dict <- rbind(bad_dict,
+#'   data.table::data.table(variable = "los_hours", source = "cohort",
+#'                          transformation = "static", clinical_group = "demographics",
+#'                          window_hours = 24L))
+#' tryCatch(audit_no_leakage(bad_dict, window_hours = 24L),
+#'          error = function(e) conditionMessage(e))
 #' @export
 audit_no_leakage <- function(feature_dict, raw_events = NULL, window_hours = 24L) {
   forbidden <- c("\\blos\\b", "\\blos_", "_los\\b",
@@ -292,6 +326,9 @@ audit_no_leakage <- function(feature_dict, raw_events = NULL, window_hours = 24L
 
 #' Recipe for preprocessing
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Returns a `recipes::recipe` encoding canonical preprocessing:
 #' median imputation for continuous predictors, mode imputation for
 #' categorical predictors, near-zero-variance drop, dummy-encoding,
@@ -302,6 +339,20 @@ audit_no_leakage <- function(feature_dict, raw_events = NULL, window_hours = 24L
 #' @param y Outcome integer vector aligned to `x$icustay_id`.
 #'
 #' @return A `recipes::recipe` object.
+#'
+#' @examples
+#' if (requireNamespace("recipes", quietly = TRUE)) {
+#'   set.seed(20260517L)
+#'   x <- data.table::data.table(
+#'     icustay_id = 1:20,
+#'     age_years  = runif(20, 0, 18),
+#'     hr_mean    = rnorm(20, 100, 15),
+#'     sex_male   = rbinom(20, 1L, 0.5)
+#'   )
+#'   y <- rbinom(20, 1L, 0.1)
+#'   rec <- default_recipe(x, y)
+#'   class(rec)
+#' }
 #' @export
 default_recipe <- function(x, y) {
   if (!requireNamespace("recipes", quietly = TRUE)) {

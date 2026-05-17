@@ -20,8 +20,30 @@ strictly within the declared window.}
 Invisibly \code{TRUE} on pass; raises a structured error on fail.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Checks (i) no variable name contains a forbidden temporal token
 (LOS, discharge, deathtime, etc.); (ii) every dictionary entry
 declares the same \code{window_hours}; (iii) optional provenance check
 on raw events confirms every observation occurred in \verb{[0, window)}.
+}
+\examples{
+# A minimal in-spec dictionary
+ok_dict <- data.table::data.table(
+  variable       = c("age_years", "hr_min", "spo2_min"),
+  source         = c("cohort", "CHARTEVENTS", "CHARTEVENTS"),
+  transformation = c("static", "min over [0,24)h", "min over [0,24)h"),
+  clinical_group = c("demographics", "vitals", "vitals"),
+  window_hours   = 24L
+)
+audit_no_leakage(ok_dict, window_hours = 24L)
+
+# A leaky dictionary (LOS is forbidden post-window information)
+bad_dict <- data.table::copy(ok_dict)
+bad_dict <- rbind(bad_dict,
+  data.table::data.table(variable = "los_hours", source = "cohort",
+                         transformation = "static", clinical_group = "demographics",
+                         window_hours = 24L))
+tryCatch(audit_no_leakage(bad_dict, window_hours = 24L),
+         error = function(e) conditionMessage(e))
 }

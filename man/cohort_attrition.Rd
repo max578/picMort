@@ -15,5 +15,16 @@ cohort_attrition(paths, min_los_hours = 24L)
 A \code{data.table} of (step, n, excluded, reason).
 }
 \description{
-Cohort attrition table (for the manuscript Methods figure)
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
+Returns the exclusion cascade documenting how many ICU stays were
+dropped at each cohort-filter step. Surfaces the same data carried
+as the \code{"attrition"} attribute on \code{\link[=build_cohort]{build_cohort()}}'s output.
+}
+\examples{
+\dontrun{
+paths <- pic_paths()
+attrition <- cohort_attrition(paths, min_los_hours = 24L)
+print(attrition)
+}
 }

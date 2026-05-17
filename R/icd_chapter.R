@@ -1,5 +1,8 @@
 #' Map an ICD-10 code to its WHO chapter
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Vectorised. Accepts either ICD-10 codes with a decimal point (e.g.
 #' `"K52.901"`, `"J18.900"`) or without (e.g. `"K52901"`). The chapter
 #' is determined by the leading letter and the two leading digits per
@@ -12,6 +15,10 @@
 #'   `"digestive"`, `"skin"`, `"musculoskeletal"`, `"genitourinary"`,
 #'   `"pregnancy"`, `"perinatal"`, `"congenital"`, `"symptoms"`,
 #'   `"injury"`, `"external"`, `"factors"`, `"special"`, `"unknown"`.
+#' @examples
+#' icd10_to_chapter(c("J18.900", "K52901", "C91.0", "I46", NA_character_))
+#' # Round-trips with or without the decimal separator
+#' identical(icd10_to_chapter("J18.900"), icd10_to_chapter("J18900"))
 #' @export
 icd10_to_chapter <- function(code) {
   out <- rep(NA_character_, length(code))

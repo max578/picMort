@@ -21,12 +21,13 @@ A list with elements \code{slope}, \code{intercept}, \code{ici}, \code{cit_large
 for plotting), and \code{n}, \code{n_events}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Computes calibration slope, intercept, integrated calibration index
 (ICI), calibration-in-the-large, and a smoothed calibration curve
 (\code{loess}). Bootstrap percentile CIs (1,000 reps default) on every
 point estimate.
-}
-\details{
+
 Definitions:
 \itemize{
 \item \strong{Calibration slope}: logistic regression of \code{y ~ logit(prob)},
@@ -39,4 +40,14 @@ Ideal = 0.
 \item \strong{ICI}: mean absolute difference between smoothed observed and
 predicted probabilities.
 }
+}
+\examples{
+set.seed(20260517L)
+n <- 200L
+prob <- stats::plogis(stats::rnorm(n, mean = -2, sd = 1))
+y    <- stats::rbinom(n, 1L, prob)
+cal  <- calibration_suite(prob, y, n_boot = 50L)
+cal$slope
+cal$ici
+head(cal$curve)
 }

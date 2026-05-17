@@ -21,13 +21,29 @@ The cohort table carries an \code{"attrition"} attribute documenting the
 exclusion cascade, accessed via \code{\link[=cohort_attrition]{cohort_attrition()}}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Constructs the canonical study cohort per \code{vignettes/cohort_spec.Rmd}:
-first ICU stay per patient; age 0–18 y at admission; valid ICU
+first ICU stay per patient; age 0-18 y at admission; valid ICU
 admit/discharge timestamps; in-hospital mortality outcome attached.
-}
-\details{
+
 Cohort assembly is the single source of truth shared by P1 (baseline),
 P2 (inductive-CI inference) and P3 (multi-modal fusion). Deviations are
 forbidden; sensitivity analyses operate on the same base cohort with
 documented filters.
+}
+\examples{
+# `build_cohort()` reads the registered PIC v1.1.0 CSVs. A pre-built
+# synthetic 80-row toy cohort with the same schema ships in
+# `inst/extdata/toy_cohort.rds` for examples and tests.
+toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+                           package = "picMort"))
+nrow(toy)
+names(toy)
+
+\dontrun{
+paths  <- pic_paths()
+cohort <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+assert_cohort_invariants(cohort)
+}
 }

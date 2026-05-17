@@ -21,8 +21,18 @@ A \code{data.table} of (model, subgroup_var, level, n,
 n_events, auroc, ici, cal_slope).
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Reports calibration + AUROC per pre-registered subgroup: age strata
 (<1, 1-5, 6-12, 13-18 y), surgical vs medical, and top-3 ICD
 chapters by frequency. Cells with fewer than \code{n_min_events} events
 are suppressed.
+}
+\examples{
+toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+                           package = "picMort"))
+set.seed(20260517L)
+probs <- list(model_a = stats::runif(nrow(toy)))
+# n_min_events = 1L because the toy cohort only has 8 deaths.
+subgroup_performance(probs, toy, n_min_events = 1L)
 }

@@ -39,6 +39,8 @@ A list with \code{model} (a \code{brmsfit}), \code{prep}, \code{predictors},
 \code{chains}, \code{iter}, \code{seed}, and \code{type = "bayes_horseshoe"}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Uses \code{brms::brm()} with a Bernoulli likelihood and a regularised
 horseshoe prior on the coefficients (Carvalho 2010 / Piironen
 & Vehtari 2017). The prior shrinks irrelevant coefficients
@@ -46,4 +48,22 @@ aggressively while leaving informative ones effectively
 unregularised; the posterior gives every patient a credible
 interval on predicted mortality probability -- the JTM
 clinical-functional wedge.
+}
+\examples{
+# `fit_bayes_horseshoe()` compiles a Stan model via `brms`. Compilation
+# alone runs 30 s - 3 min and a minimal 1-chain / 200-iter sample
+# another 1-5 min, so the example is wrapped in `\dontrun{}` rather than
+# `\donttest{}` -- `R CMD check --run-donttest` would otherwise need a
+# fully provisioned rstan toolchain on every CI worker. The brms smoke
+# test in `tests/testthat/test-fits.R` runs only when the environment
+# variable `PICMORT_TEST_BAYES=true` is set.
+\dontrun{
+paths    <- pic_paths()
+cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+features <- build_features(cohort, paths, window_hours = 24L)
+split    <- make_train_test_split(features)
+fit      <- fit_bayes_horseshoe(features, split$train_idx,
+                                chains = 1L, iter = 200L)
+fit$type
+}
 }

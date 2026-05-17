@@ -1,5 +1,8 @@
 #' Resolve PIC v1.1.0 source paths
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Returns a named list of canonical paths to PIC CSVs, resolved through
 #' the project-local `data_links/pic_v110/` symlink. The package never
 #' embeds the Box-synced source path; the symlink is the single point of
@@ -17,6 +20,21 @@
 #'   `outputevents`, `microbiologyevents`, `surgery_vital_signs`,
 #'   `or_exam_reports`, `emr_symptoms`.
 #'
+#' @examples
+#' # Requires the registered PIC v1.1.0 source linked at
+#' # `<project root>/data_links/pic_v110/`. Run `check = FALSE` to inspect
+#' # the expected file names without touching disk.
+#' \dontrun{
+#' paths <- pic_paths()
+#' names(paths)
+#' }
+#'
+#' # File-name discovery without verifying existence
+#' tmp <- tempfile(); dir.create(file.path(tmp, "data_links", "pic_v110"),
+#'                               recursive = TRUE)
+#' paths <- pic_paths(root = tmp, check = FALSE)
+#' names(paths)
+#' unlink(tmp, recursive = TRUE)
 #' @export
 pic_paths <- function(root = NULL, check = TRUE) {
   root <- root %||% find_project_root()

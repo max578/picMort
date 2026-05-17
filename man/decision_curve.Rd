@@ -22,8 +22,21 @@ A \code{data.table} of (model, threshold, net_benefit, type).
 \code{type} is \code{"model"}, \code{"all"}, or \code{"none"}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Computes net benefit per threshold per model alongside the
 "treat-all" / "treat-none" references. Net benefit is computed
 analytically (no external package dependency); equivalent to
 \code{dcurves::dca()}.
+}
+\examples{
+set.seed(20260517L)
+n <- 200L
+p_a <- stats::plogis(stats::rnorm(n, -2, 1))
+p_b <- stats::plogis(stats::rnorm(n, -2, 1.4))
+y   <- stats::rbinom(n, 1L, (p_a + p_b) / 2)
+dca <- decision_curve(list(model_a = p_a, model_b = p_b), y,
+                      thresholds = c(0.05, 0.10, 0.20),
+                      plot_grid = FALSE)
+dca
 }

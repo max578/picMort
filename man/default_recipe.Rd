@@ -15,9 +15,25 @@ default_recipe(x, y)
 A \code{recipes::recipe} object.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Returns a \code{recipes::recipe} encoding canonical preprocessing:
 median imputation for continuous predictors, mode imputation for
 categorical predictors, near-zero-variance drop, dummy-encoding,
 centring + scaling. Fit on training fold; applied to test fold via
 \code{prep()} / \code{bake()}.
+}
+\examples{
+if (requireNamespace("recipes", quietly = TRUE)) {
+  set.seed(20260517L)
+  x <- data.table::data.table(
+    icustay_id = 1:20,
+    age_years  = runif(20, 0, 18),
+    hr_mean    = rnorm(20, 100, 15),
+    sex_male   = rbinom(20, 1L, 0.5)
+  )
+  y <- rbinom(20, 1L, 0.1)
+  rec <- default_recipe(x, y)
+  class(rec)
+}
 }

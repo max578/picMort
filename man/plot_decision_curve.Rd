@@ -13,6 +13,19 @@ plot_decision_curve(dca)
 A \code{ggplot} object.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Net benefit vs threshold across models, with treat-all and
 treat-none references.
+}
+\examples{
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  set.seed(20260517L)
+  n <- 200L
+  p_a <- stats::plogis(stats::rnorm(n, -2, 1))
+  y   <- stats::rbinom(n, 1L, p_a)
+  dca <- decision_curve(list(model_a = p_a), y, plot_grid = TRUE)
+  p   <- plot_decision_curve(dca)
+  class(p)
+}
 }

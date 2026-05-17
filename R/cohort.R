@@ -1,7 +1,10 @@
 #' Build the frozen P1/P2/P3 cohort
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Constructs the canonical study cohort per `vignettes/cohort_spec.Rmd`:
-#' first ICU stay per patient; age 0–18 y at admission; valid ICU
+#' first ICU stay per patient; age 0-18 y at admission; valid ICU
 #' admit/discharge timestamps; in-hospital mortality outcome attached.
 #'
 #' Cohort assembly is the single source of truth shared by P1 (baseline),
@@ -19,6 +22,20 @@
 #'   The cohort table carries an `"attrition"` attribute documenting the
 #'   exclusion cascade, accessed via [cohort_attrition()].
 #'
+#' @examples
+#' # `build_cohort()` reads the registered PIC v1.1.0 CSVs. A pre-built
+#' # synthetic 80-row toy cohort with the same schema ships in
+#' # `inst/extdata/toy_cohort.rds` for examples and tests.
+#' toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+#'                            package = "picMort"))
+#' nrow(toy)
+#' names(toy)
+#'
+#' \dontrun{
+#' paths  <- pic_paths()
+#' cohort <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+#' assert_cohort_invariants(cohort)
+#' }
 #' @importFrom data.table fread setnames setorder uniqueN setattr `:=` `.SD`
 #' @export
 build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
@@ -156,10 +173,24 @@ build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
 
 #' Cohort attrition table (for the manuscript Methods figure)
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
+#' Returns the exclusion cascade documenting how many ICU stays were
+#' dropped at each cohort-filter step. Surfaces the same data carried
+#' as the `"attrition"` attribute on [build_cohort()]'s output.
+#'
 #' @param paths Output of [pic_paths()].
 #' @param min_los_hours See [build_cohort()].
 #'
 #' @return A `data.table` of (step, n, excluded, reason).
+#'
+#' @examples
+#' \dontrun{
+#' paths <- pic_paths()
+#' attrition <- cohort_attrition(paths, min_los_hours = 24L)
+#' print(attrition)
+#' }
 #' @export
 cohort_attrition <- function(paths, min_los_hours = 24L) {
   cohort <- build_cohort(paths, min_los_hours = min_los_hours, verbose = FALSE)
@@ -168,12 +199,34 @@ cohort_attrition <- function(paths, min_los_hours = 24L) {
 
 #' Cohort invariants (used by tests and as a sanity gate at runtime)
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
+#' Verifies that a cohort `data.table` satisfies the structural and
+#' epidemiological invariants committed in `vignettes/cohort_spec.Rmd`.
+#' Raises a structured error listing every violation; passes silently
+#' (invisibly returning `TRUE`) when all invariants hold.
+#'
 #' @param cohort A cohort `data.table` from [build_cohort()].
 #' @param expected Named list of expected ranges. Defaults to the values
 #'   committed in `vignettes/cohort_spec.Rmd`.
 #'
 #' @return Invisibly returns `TRUE` if all invariants hold; raises an
 #'   error listing every violation otherwise.
+#'
+#' @examples
+#' toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+#'                            package = "picMort"))
+#' toy_expectations <- list(
+#'   n_min            = 50L,
+#'   n_max            = 150L,
+#'   mortality_rate   = c(0.05, 0.20),
+#'   age_range_years  = c(0, 18),
+#'   sex_levels       = c("F", "M"),
+#'   distinct_subject = TRUE,
+#'   no_overlap_stays = TRUE
+#' )
+#' assert_cohort_invariants(toy, expected = toy_expectations)
 #' @export
 assert_cohort_invariants <- function(cohort, expected = default_cohort_expectations()) {
   v <- character(0)

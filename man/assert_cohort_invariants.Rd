@@ -17,5 +17,24 @@ Invisibly returns \code{TRUE} if all invariants hold; raises an
 error listing every violation otherwise.
 }
 \description{
-Cohort invariants (used by tests and as a sanity gate at runtime)
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
+Verifies that a cohort \code{data.table} satisfies the structural and
+epidemiological invariants committed in \code{vignettes/cohort_spec.Rmd}.
+Raises a structured error listing every violation; passes silently
+(invisibly returning \code{TRUE}) when all invariants hold.
+}
+\examples{
+toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+                           package = "picMort"))
+toy_expectations <- list(
+  n_min            = 50L,
+  n_max            = 150L,
+  mortality_rate   = c(0.05, 0.20),
+  age_range_years  = c(0, 18),
+  sex_levels       = c("F", "M"),
+  distinct_subject = TRUE,
+  no_overlap_stays = TRUE
+)
+assert_cohort_invariants(toy, expected = toy_expectations)
 }

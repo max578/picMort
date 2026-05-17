@@ -23,7 +23,19 @@ A list with \code{model}, \code{prep}, \code{predictors}, \code{best_params},
 \code{best_nrounds}, \code{cv_log}, \code{scale_pos_weight}, and \code{type = "xgboost"}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Inner CV over a small principled grid. Class imbalance handled via
 \code{scale_pos_weight = n_neg / n_pos}. Returns the best parameter set
 and the corresponding fitted model.
+}
+\examples{
+\dontrun{
+paths    <- pic_paths()
+cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+features <- build_features(cohort, paths, window_hours = 24L)
+split    <- make_train_test_split(features)
+fit      <- fit_xgboost(features, split$train_idx)
+fit$best_nrounds
+}
 }

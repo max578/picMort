@@ -23,11 +23,27 @@
 
 #' Stratified train / test split
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
+#' Outcome-stratified single split into training and test folds via
+#' `rsample::initial_split()`. Returns 1-based integer indices into
+#' `features$y` (and rows of `features$x`).
+#'
 #' @param features Output of [build_features()].
 #' @param prop Proportion in the training fold. Default 0.7.
 #' @param seed Integer seed; default 20260508.
 #'
 #' @return A list with `train_idx`, `test_idx` (integer vectors).
+#'
+#' @examples
+#' if (requireNamespace("rsample", quietly = TRUE)) {
+#'   set.seed(20260517L)
+#'   features <- list(y = c(rep(0L, 90), rep(1L, 10)))
+#'   split <- make_train_test_split(features, prop = 0.7, seed = 1L)
+#'   length(split$train_idx) + length(split$test_idx) # 100
+#'   mean(features$y[split$train_idx]) # ~ 0.10
+#' }
 #' @export
 make_train_test_split <- function(features, prop = 0.7, seed = 20260508L) {
   if (!requireNamespace("rsample", quietly = TRUE)) {
@@ -70,6 +86,9 @@ bake_new <- function(prep, x_new, predictors) {
 
 #' Fit penalised logistic regression (elastic net)
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Inner CV over the (alpha, lambda) grid; class-weighted to handle
 #' the ~7-9 % paediatric ICU mortality rate. Selects best alpha by
 #' minimum CV deviance and uses `lambda.1se` for parsimony.
@@ -82,6 +101,17 @@ bake_new <- function(prep, x_new, predictors) {
 #'
 #' @return A list with `model`, `prep`, `predictors`, `best_alpha`,
 #'   `best_lambda`, `cv_log`, and `type = "glmnet"`.
+#'
+#' @examples
+#' \dontrun{
+#' paths    <- pic_paths()
+#' cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+#' features <- build_features(cohort, paths, window_hours = 24L)
+#' split    <- make_train_test_split(features)
+#' fit      <- fit_elastic_net(features, split$train_idx)
+#' fit$best_alpha
+#' fit$best_lambda
+#' }
 #' @export
 fit_elastic_net <- function(features, train_idx,
                             alpha_grid = seq(0, 1, by = 0.2),
@@ -121,6 +151,9 @@ fit_elastic_net <- function(features, train_idx,
 
 #' Fit XGBoost classifier
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Inner CV over a small principled grid. Class imbalance handled via
 #' `scale_pos_weight = n_neg / n_pos`. Returns the best parameter set
 #' and the corresponding fitted model.
@@ -131,6 +164,16 @@ fit_elastic_net <- function(features, train_idx,
 #'
 #' @return A list with `model`, `prep`, `predictors`, `best_params`,
 #'   `best_nrounds`, `cv_log`, `scale_pos_weight`, and `type = "xgboost"`.
+#'
+#' @examples
+#' \dontrun{
+#' paths    <- pic_paths()
+#' cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+#' features <- build_features(cohort, paths, window_hours = 24L)
+#' split    <- make_train_test_split(features)
+#' fit      <- fit_xgboost(features, split$train_idx)
+#' fit$best_nrounds
+#' }
 #' @export
 fit_xgboost <- function(features, train_idx,
                         grid = NULL,
@@ -197,6 +240,9 @@ fit_xgboost <- function(features, train_idx,
 
 #' Fit Bayesian logistic regression with regularised horseshoe prior
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Uses `brms::brm()` with a Bernoulli likelihood and a regularised
 #' horseshoe prior on the coefficients (Carvalho 2010 / Piironen
 #' & Vehtari 2017). The prior shrinks irrelevant coefficients
@@ -216,6 +262,24 @@ fit_xgboost <- function(features, train_idx,
 #'
 #' @return A list with `model` (a `brmsfit`), `prep`, `predictors`,
 #'   `chains`, `iter`, `seed`, and `type = "bayes_horseshoe"`.
+#'
+#' @examples
+#' # `fit_bayes_horseshoe()` compiles a Stan model via `brms`. Compilation
+#' # alone runs 30 s - 3 min and a minimal 1-chain / 200-iter sample
+#' # another 1-5 min, so the example is wrapped in `\dontrun{}` rather than
+#' # `\donttest{}` -- `R CMD check --run-donttest` would otherwise need a
+#' # fully provisioned rstan toolchain on every CI worker. The brms smoke
+#' # test in `tests/testthat/test-fits.R` runs only when the environment
+#' # variable `PICMORT_TEST_BAYES=true` is set.
+#' \dontrun{
+#' paths    <- pic_paths()
+#' cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+#' features <- build_features(cohort, paths, window_hours = 24L)
+#' split    <- make_train_test_split(features)
+#' fit      <- fit_bayes_horseshoe(features, split$train_idx,
+#'                                 chains = 1L, iter = 200L)
+#' fit$type
+#' }
 #' @export
 fit_bayes_horseshoe <- function(features, train_idx,
                                 chains = 2L, iter = 1000L,
@@ -256,6 +320,9 @@ fit_bayes_horseshoe <- function(features, train_idx,
 
 #' Predict mortality probabilities (unified interface)
 #'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Routes to the appropriate predict implementation based on
 #' `model$type`. Returns a `data.table` with columns:
 #'   * `prob_raw`         -- model output (probability of in-hospital mortality)
@@ -268,6 +335,28 @@ fit_bayes_horseshoe <- function(features, train_idx,
 #'   `icustay_id` and the same columns as the training features).
 #'
 #' @return A `data.table` aligned to `nrow(new_data)`.
+#'
+#' @examples
+#' # PIM3 dispatch branch: predict_mortality() also accepts the PIM3
+#' # data.table returned by compute_pim3(), bypassing model fits.
+#' toy <- readRDS(system.file("extdata", "toy_cohort.rds",
+#'                            package = "picMort"))
+#' pim3_tbl <- data.table::data.table(
+#'   icustay_id = toy$icustay_id,
+#'   pim3       = stats::plogis(stats::rnorm(nrow(toy), mean = -2.5, sd = 0.5))
+#' )
+#' preds <- predict_mortality(pim3_tbl, toy[1:5, ])
+#' preds
+#'
+#' \dontrun{
+#' # Full model-fit dispatch (requires the registered PIC data)
+#' paths    <- pic_paths()
+#' cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+#' features <- build_features(cohort, paths, window_hours = 24L)
+#' split    <- make_train_test_split(features)
+#' fit      <- fit_elastic_net(features, split$train_idx)
+#' predict_mortality(fit, features$x[split$test_idx, ])
+#' }
 #' @export
 predict_mortality <- function(model, new_data) {
   if (data.table::is.data.table(model) && "pim3" %in% names(model)) {

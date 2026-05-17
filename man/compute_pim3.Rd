@@ -21,10 +21,32 @@ A \code{data.table} keyed on \code{icustay_id} with columns:
 \code{proxy_flags} (list-column; vector of components that defaulted).
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Computes the Paediatric Index of Mortality 3 (Straney et al. 2013)
 from PIC \code{CHARTEVENTS} and the \code{cohort} table. Components that
 cannot be recovered from PIC default to 0 (Straney convention) and
 are listed in \code{proxy_flags}.
+
+Demonstrating the linear-predictor calculation without PIC source files
+(this is what \code{compute_pim3()} produces internally per patient):
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{beta <- picMort:::pim3_coefficients()
+sbp_used <- 120
+logit <- beta$intercept +
+         beta$sbp_linear * sbp_used +
+         beta$sbp_abs_dev_120 * abs(sbp_used - 120)
+stats::plogis(logit) # baseline PIM3 risk
+}\if{html}{\out{</div>}}
+}
+\examples{
+\dontrun{
+paths    <- pic_paths()
+cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+pim3_tbl <- compute_pim3(cohort, paths)
+summary(pim3_tbl$pim3)
+table(pim3_tbl$risk_group)
+}
 }
 \references{
 Straney L et al. (2013). PIM3: an updated Paediatric

@@ -28,7 +28,20 @@ A list with \code{model}, \code{prep}, \code{predictors}, \code{best_alpha},
 \code{best_lambda}, \code{cv_log}, and \code{type = "glmnet"}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Inner CV over the (alpha, lambda) grid; class-weighted to handle
 the ~7-9 \% paediatric ICU mortality rate. Selects best alpha by
 minimum CV deviance and uses \code{lambda.1se} for parsimony.
+}
+\examples{
+\dontrun{
+paths    <- pic_paths()
+cohort   <- build_cohort(paths, min_los_hours = 24L, verbose = FALSE)
+features <- build_features(cohort, paths, window_hours = 24L)
+split    <- make_train_test_split(features)
+fit      <- fit_elastic_net(features, split$train_idx)
+fit$best_alpha
+fit$best_lambda
+}
 }

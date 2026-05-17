@@ -3,3 +3,8 @@
 ^_targets$
 ^\.Rproj\.user$
 ^README\.Rmd$
+^data-raw$
+^\.github$
+^API_STABILITY\.md$
+^_pkgdown\.yml$
+^cran-comments\.md$

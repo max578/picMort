@@ -18,8 +18,15 @@ Character vector of chapter names; one of:
 \code{"injury"}, \code{"external"}, \code{"factors"}, \code{"special"}, \code{"unknown"}.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Vectorised. Accepts either ICD-10 codes with a decimal point (e.g.
 \code{"K52.901"}, \code{"J18.900"}) or without (e.g. \code{"K52901"}). The chapter
 is determined by the leading letter and the two leading digits per
 the ICD-10 chapter ranges.
+}
+\examples{
+icd10_to_chapter(c("J18.900", "K52901", "C91.0", "I46", NA_character_))
+# Round-trips with or without the decimal separator
+identical(icd10_to_chapter("J18.900"), icd10_to_chapter("J18900"))
 }

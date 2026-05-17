@@ -17,5 +17,18 @@ make_train_test_split(features, prop = 0.7, seed = 20260508L)
 A list with \code{train_idx}, \code{test_idx} (integer vectors).
 }
 \description{
-Stratified train / test split
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
+Outcome-stratified single split into training and test folds via
+\code{rsample::initial_split()}. Returns 1-based integer indices into
+\code{features$y} (and rows of \code{features$x}).
+}
+\examples{
+if (requireNamespace("rsample", quietly = TRUE)) {
+  set.seed(20260517L)
+  features <- list(y = c(rep(0L, 90), rep(1L, 10)))
+  split <- make_train_test_split(features, prop = 0.7, seed = 1L)
+  length(split$train_idx) + length(split$test_idx) # 100
+  mean(features$y[split$train_idx]) # ~ 0.10
+}
 }
