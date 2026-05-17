@@ -25,16 +25,18 @@
 
 | Environment | R version | OS | Status |
 |---|---|---|---|
-| Local | 4.5.2 (2025-10-31, "[Not] Part in a Rumble") | macOS 26.4.1, aarch64-apple-darwin20 | 0 ERROR, 0 WARNING, 2 NOTE (environment-local, documented below) |
-| GitHub Actions | release / devel / oldrel-1 | ubuntu-latest, macos-latest, windows-latest | Run on every push to `main` via `.github/workflows/R-CMD-check.yaml`; results in the repository's Actions tab. |
+| Local | 4.5.2 (2025-10-31, "[Not] Part in a Rumble") | macOS 26.4.1, aarch64-apple-darwin20 | 0 ERROR, 0 WARNING, 0 NOTE for `--no-manual --no-build-vignettes` |
+| GitHub Actions | release / devel / oldrel-1 | ubuntu-latest, macos-latest, windows-latest | Not configured in this repository snapshot; planned before any CRAN/r-universe release automation. |
 
 ## R CMD check results
 
-The local `R CMD check --as-cran` run produces **0 errors, 0 warnings,
-2 notes**. Both notes are environment-local artefacts that do not
-appear on the CRAN winbuilder / r-universe CI farms.
+The latest local release rehearsal with
+`R CMD check --no-manual --no-build-vignettes` produces **0 errors,
+0 warnings, 0 notes** after the vignette source is run. A full
+`--as-cran` run is deferred until the package is actually aimed at
+CRAN.
 
-### Surviving NOTEs
+### Historically observed environment-local NOTEs
 
 1. `checking for future file timestamps ... unable to verify current
    time`. The package timestamp endpoint at `worldclockapi.com` is
@@ -76,16 +78,14 @@ Functions that require the registered-DUA PIC v1.1.0 source data
 wrap the data-loading step in `\dontrun{}` and additionally
 exercise their pure-math behaviour against a synthetic toy cohort
 shipped via `inst/extdata/toy_cohort.rds`. The Bayesian fit example
-(`fit_bayes_horseshoe`) uses `\donttest{}` rather than `\dontrun{}`
-because it is runnable but slower than the 5-second example budget
-when run under `R CMD check --run-donttest`.
+(`fit_bayes_horseshoe`) uses `\dontrun{}` because it requires a Stan
+toolchain and is much slower than the example budget.
 
 ## Tests
 
-The `testthat` suite has 23 tests across 7 files; 14 run
+The `testthat` suite has 26 tests across 7 files; 17 run
 unconditionally, and 9 skip gracefully on environments without a
-PIC v1.1.0 data symlink. Coverage is reported on every push via
-the `test-coverage` workflow.
+PIC v1.1.0 data symlink. Coverage automation is not configured yet.
 
 ## Vignettes
 

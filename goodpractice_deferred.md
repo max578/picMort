@@ -7,10 +7,10 @@ Tier 7 submission rehearsal, run 2026-05-17. `goodpractice::gp(path = ".")` repo
 
 This file documents items deferred to a later release with rationale. All real issues (e.g. `seq_len` vs `1:length`, `T`/`F` vs `TRUE`/`FALSE`) are absent; `lintr` cross-checks confirm zero findings on `T_and_F_symbol_linter()` and `seq_linter()`.
 
-## 1. `covr` — 33% line coverage (deferred to v0.2.0)
+## 1. `covr` — 38% line coverage (deferred to v0.2.0)
 
 **Check.** "Write unit tests for all functions, and all package code in general."
-**Reported coverage.** 33% (583 lines uncovered, mostly in `R/cohort.R`, `R/features.R`, `R/pim3.R`).
+**Reported coverage.** 38% (600 lines uncovered, mostly in `R/cohort.R`, `R/features.R`, `R/pim3.R`, and `R/fit.R`).
 **Reason for deferral.** The bulk of uncovered code is the PIC-data-bound pipeline (`build_cohort()`, `build_features()`, `compute_pim3()`) — these require the registered PIC v1.1.0 CSVs at `data_links/pic_v110/` and cannot run on CRAN. The `testthat` suite already includes:
 - gates G1 (cohort invariants), G2 (no-leakage feature audit), G3 (PIM3 face validity), G4 (fit/predict round-trip);
 - a calibration-suite smoke test on synthetic data (`test-eval.R`);
@@ -29,12 +29,12 @@ After this Tier-7 sweep, 11 long-line lints remain inside `R/`. Each is alignmen
 | `R/features.R:34` | 86 | `list(var = "glucose", label = "Glucose", itemids = c(5047L, 5223L),` | Same alignment table as above. |
 | `R/features.R:36` | 86 | `list(var = "sodium", label = "Sodium", itemids = c(5230L, 5062L),` | Same. |
 | `R/features.R:46` | 86 | `list(var = "creatinine", label = "Creatinine", itemids = c(5032L, 5041L),` | Same. |
-| `R/features.R:251` | 83 | `add("age_months", "cohort", "static", "demographics")` | Column-aligned table-style call inside `feature_dictionary()` (positional args document the feature_dict schema). |
-| `R/features.R:252` | 83 | `add("age_years", "cohort", "static", "demographics")` | Same. |
-| `R/features.R:253` | 83 | `add("sex_male", "cohort", "static (1=M)", "demographics")` | Same. |
-| `R/features.R:254` | 89 | `add("is_surgical", "cohort", "any SURGERY_VITAL_SIGNS row", "demographics")` | Same; transformation description is data-derived and not portable to a separate variable without obfuscation. |
-| `R/features.R:255` | 82 | `add("primary_icd_chapter", "cohort", "ICD-10 chapter (admission diagnosis)",` | Same. |
-| `R/features.R:272` | 83 | `add(paste0(cc, "_missing"), "derived", "1 if value missing in window, else 0", "missingness_indicator")` | Same. |
+| `R/features.R:253` | 83 | `add("age_months", "cohort", "static", "demographics")` | Column-aligned table-style call inside `feature_dictionary()` (positional args document the feature_dict schema). |
+| `R/features.R:254` | 83 | `add("age_years", "cohort", "static", "demographics")` | Same. |
+| `R/features.R:255` | 83 | `add("sex_male", "cohort", "static (1=M)", "demographics")` | Same. |
+| `R/features.R:256` | 89 | `add("is_surgical", "cohort", "any SURGERY_VITAL_SIGNS row", "demographics")` | Same; transformation description is data-derived and not portable to a separate variable without obfuscation. |
+| `R/features.R:257` | 82 | `add("primary_icd_chapter", "cohort", "ICD-10 chapter (admission diagnosis)",` | Same. |
+| `R/features.R:274` | 83 | `add(paste0(cc, "_missing"), "derived", "1 if value missing in window, else 0", "missingness_indicator")` | Same. |
 
 **Test/vignette long lines (20).** Mostly `skip_if_not(...)` and `expect_named(...)` calls in `tests/testthat/` (where the test description string + path makes line-length unavoidable) and two roxygen comments in `vignettes/paper{1,3}_*.Rmd` (vignette prose, not package code). These are not surfaced in `R CMD check`.
 

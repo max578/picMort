@@ -30,15 +30,17 @@ set.seed(20260517L)
 brms_ok <- requireNamespace("brms",  quietly = TRUE) &&
            requireNamespace("rstan", quietly = TRUE) &&
            requireNamespace("BH",    quietly = TRUE)
+run_bayes <- brms_ok &&
+             identical(Sys.getenv("PICMORT_RUN_VIGNETTE_BAYES"), "true")
+fit_bh <- NULL
 ```
 
-```{r brms-unavailable-notice, eval=!brms_ok, echo = FALSE, results = "asis"}
+```{r brms-unavailable-notice, eval=!run_bayes, echo = FALSE, results = "asis"}
 cat(
-  "> **Note.** The Stan toolchain (`brms` + `rstan` + `BH`) is not ",
-  "available in this rendering environment, so the Bayesian ",
-  "regularised-horseshoe fit and its calibration / decision-curve / ",
-  "discrimination columns are skipped. Re-render on a host with the ",
-  "Stan toolchain installed to include the Bayesian model.\n",
+  "> **Note.** The Bayesian regularised-horseshoe fit is skipped in ",
+  "the default vignette render to keep `R CMD check` fast and portable. ",
+  "Set `PICMORT_RUN_VIGNETTE_BAYES=true` on a host with `brms`, `rstan`, ",
+  "and `BH` installed to include the Bayesian model.\n",
   sep = ""
 )
 ```
@@ -196,7 +198,7 @@ fit_xgb <- fit_xgboost(features, split$train_idx, seed = 20260517L)
 fit_xgb$best_nrounds
 ```
 
-```{r fit-bayes, message = FALSE, warning = FALSE, results = "hide", eval=brms_ok}
+```{r fit-bayes, message = FALSE, warning = FALSE, results = "hide", eval=run_bayes}
 fit_bh <- fit_bayes_horseshoe(
   features, split$train_idx,
   chains = 2L, iter = 500L,
@@ -205,7 +207,7 @@ fit_bh <- fit_bayes_horseshoe(
 )
 ```
 
-```{r fit-bayes-summary, eval=brms_ok}
+```{r fit-bayes-summary, eval=run_bayes}
 fit_bh$chains
 fit_bh$iter
 ```
@@ -222,7 +224,7 @@ y_test <- features$y[split$test_idx]
 
 pred_en  <- predict_mortality(fit_en,  x_test)
 pred_xgb <- predict_mortality(fit_xgb, x_test)
-if (brms_ok) {
+if (!is.null(fit_bh)) {
   pred_bh <- predict_mortality(fit_bh, x_test)
   head(pred_bh, 3)
 } else {
@@ -237,7 +239,7 @@ probs <- list(
   elastic_net = pred_en$prob_raw,
   xgboost     = pred_xgb$prob_raw
 )
-if (brms_ok) {
+if (!is.null(pred_bh)) {
   probs$bayes_horseshoe <- pred_bh$prob_raw
 }
 

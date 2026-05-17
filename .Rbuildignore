@@ -5,6 +5,9 @@
 ^README\.Rmd$
 ^data-raw$
 ^\.github$
+^\.DS_Store$
+^picMort_.*\.tar\.gz$
+^picMort\.Rcheck$
 ^API_STABILITY\.md$
 ^_pkgdown\.yml$
 ^cran-comments\.md$

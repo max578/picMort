@@ -6,8 +6,9 @@
 ## Subgroup performance reports per age strata, surgical/medical and
 ## top ICD chapters with small-cell suppression at n_min < 50.
 ##
-## All metrics support bootstrap percentile / BCa CIs (default 1,000
-## reps). Bayesian model predictions can additionally carry posterior
+## Calibration and discrimination metrics support bootstrap percentile CIs
+## (default 1,000 reps). Bayesian model predictions can additionally carry
+## posterior
 ## CrIs natively in `prob_lower` / `prob_upper`; calibration_suite
 ## reports both bootstrap and (optional) Bayesian uncertainty when
 ## available.
@@ -71,6 +72,11 @@ calibration_suite <- function(prob, y, n_boot = 1000L, seed = 20260508L) {
   ci <- function(name) {
     v <- boot[name, ]
     v <- v[is.finite(v)]
+    if (length(v) == 0L) {
+      return(c(estimate = unname(point[name]),
+               lower = NA_real_,
+               upper = NA_real_))
+    }
     c(estimate = unname(point[name]),
       lower = stats::quantile(v, 0.025, names = FALSE),
       upper = stats::quantile(v, 0.975, names = FALSE))
@@ -91,18 +97,21 @@ calibration_suite <- function(prob, y, n_boot = 1000L, seed = 20260508L) {
 #' @noRd
 calibration_metrics_point <- function(prob, y) {
   logit_p <- stats::qlogis(prob)
-  slope_fit <- stats::glm(y ~ logit_p, family = stats::binomial())
-  intercept_fit <- stats::glm(y ~ offset(logit_p), family = stats::binomial())
-  loess_fit <- tryCatch(
-    stats::loess(y ~ prob, span = 0.75, degree = 1),
-    error = function(e) NULL
+  slope <- safe_glm_coef(
+    stats::glm(y ~ logit_p, family = stats::binomial()),
+    index = 2L
   )
+  intercept <- safe_glm_coef(
+    stats::glm(y ~ offset(logit_p), family = stats::binomial()),
+    index = 1L
+  )
+  loess_fit <- safe_loess(prob, y)
   ici <- if (is.null(loess_fit)) NA_real_ else
     mean(abs(stats::fitted(loess_fit) - prob))
   cit_large <- log((mean(y) + 1e-9) / (mean(prob) + 1e-9))
   c(
-    slope     = unname(stats::coef(slope_fit)[2]),
-    intercept = unname(stats::coef(intercept_fit)[1]),
+    slope     = slope,
+    intercept = intercept,
     ici       = ici,
     cit_large = cit_large
   )
@@ -110,11 +119,35 @@ calibration_metrics_point <- function(prob, y) {
 
 #' @keywords internal
 #' @noRd
-calibration_curve_points <- function(prob, y, ngrid = 200L) {
-  loess_fit <- tryCatch(
-    stats::loess(y ~ prob, span = 0.75, degree = 1),
+safe_glm_coef <- function(expr, index) {
+  fit <- tryCatch(
+    suppressWarnings(expr),
     error = function(e) NULL
   )
+  if (is.null(fit)) return(NA_real_)
+  co <- stats::coef(fit)
+  if (length(co) < index || !is.finite(co[[index]])) return(NA_real_)
+  unname(co[[index]])
+}
+
+#' @keywords internal
+#' @noRd
+safe_loess <- function(prob, y) {
+  if (length(prob) < 4L ||
+      length(unique(prob)) < 3L ||
+      length(unique(y)) < 2L) {
+    return(NULL)
+  }
+  tryCatch(
+    suppressWarnings(stats::loess(y ~ prob, span = 0.75, degree = 1)),
+    error = function(e) NULL
+  )
+}
+
+#' @keywords internal
+#' @noRd
+calibration_curve_points <- function(prob, y, ngrid = 200L) {
+  loess_fit <- safe_loess(prob, y)
   if (is.null(loess_fit)) {
     return(data.frame(prob = numeric(), observed = numeric()))
   }
@@ -258,11 +291,14 @@ discrimination_metrics <- function(probs, y, reference = NULL,
 #' @keywords internal
 #' @noRd
 simple_auroc <- function(p, y) {
-  o <- order(p, decreasing = TRUE); y <- y[o]
-  if (sum(y) == 0L || sum(y) == length(y)) return(NA_real_)
-  tp <- cumsum(y); fp <- cumsum(1L - y)
-  tpr <- c(0, tp / sum(y)); fpr <- c(0, fp / sum(1L - y))
-  sum(diff(fpr) * (tpr[-1] + tpr[-length(tpr)]) / 2)
+  ok <- is.finite(p) & !is.na(y)
+  p <- p[ok]
+  y <- as.integer(y[ok])
+  n_pos <- sum(y == 1L)
+  n_neg <- sum(y == 0L)
+  if (n_pos == 0L || n_neg == 0L) return(NA_real_)
+  ranks <- rank(p, ties.method = "average")
+  (sum(ranks[y == 1L]) - n_pos * (n_pos + 1L) / 2) / (n_pos * n_neg)
 }
 
 #' @keywords internal

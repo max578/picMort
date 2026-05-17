@@ -1,6 +1,6 @@
 Package: picMort
 Title: Reproducible Paediatric ICU Mortality Benchmark on PIC V1.1.0
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person("Max", "Moldovan", email = "max.moldovan@adelaide.edu.au",
            role = c("aut", "cre"),
@@ -39,6 +39,7 @@ Suggests:
     dcurves (>= 0.4),
     brms (>= 2.20),
     rstan (>= 2.30),
+    BH,
     posterior,
     bayesplot,
     targets (>= 1.5),

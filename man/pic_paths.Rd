@@ -8,8 +8,8 @@ pic_paths(root = NULL, check = TRUE)
 }
 \arguments{
 \item{root}{Path to the directory containing \verb{data_links/}. Defaults
-to the project root (two levels above the package directory when
-loaded via \code{devtools::load_all()}).}
+to \code{PICMORT_DATA_DIR} when that environment variable is set, or to
+the project root containing \verb{data_links/} otherwise.}
 
 \item{check}{Logical. If \code{TRUE} (default), verifies that every
 referenced CSV exists and is readable.}
@@ -24,15 +24,16 @@ Named list with elements \code{admissions}, \code{patients}, \code{icustays},
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
-Returns a named list of canonical paths to PIC CSVs, resolved through
-the project-local \verb{data_links/pic_v110/} symlink. The package never
-embeds the Box-synced source path; the symlink is the single point of
-indirection.
+Returns a named list of canonical paths to PIC CSVs. If the
+\code{PICMORT_DATA_DIR} environment variable is set, it is treated as the
+directory containing the PIC v1.1.0 CSVs. Otherwise paths are resolved
+through the project-local \verb{data_links/pic_v110/} symlink.
 }
 \examples{
-# Requires the registered PIC v1.1.0 source linked at
-# `<project root>/data_links/pic_v110/`. Run `check = FALSE` to inspect
-# the expected file names without touching disk.
+# Requires the registered PIC v1.1.0 source, either via
+# `PICMORT_DATA_DIR` or `<project root>/data_links/pic_v110/`.
+# Run `check = FALSE` to inspect the expected file names without
+# touching disk.
 \dontrun{
 paths <- pic_paths()
 names(paths)

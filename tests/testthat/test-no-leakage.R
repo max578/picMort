@@ -45,3 +45,29 @@ test_that("audit_no_leakage rejects mixed window_hours", {
   expect_error(audit_no_leakage(bad_dict, window_hours = 24L),
                regexp = "mixed window_hours")
 })
+
+test_that("audit_no_leakage verifies raw event offsets when supplied", {
+  ok_dict <- data.table::data.table(
+    variable        = c("hr_min", "spo2_min"),
+    source          = c("CHARTEVENTS", "CHARTEVENTS"),
+    transformation  = c("min over [0,24)h", "min over [0,24)h"),
+    clinical_group  = c("vitals", "vitals"),
+    window_hours    = c(24L, 24L)
+  )
+  ok_events <- list(data.table::data.table(t_hours = c(0, 2.5, 23.99)))
+  expect_true(isTRUE(audit_no_leakage(ok_dict, raw_events = ok_events,
+                                      window_hours = 24L)))
+
+  bad_events <- list(data.table::data.table(t_hours = c(-0.1, 1, 24)))
+  expect_error(
+    audit_no_leakage(ok_dict, raw_events = bad_events, window_hours = 24L),
+    regexp = "outside \\[0, 24\\)h"
+  )
+
+  malformed_events <- list(data.table::data.table(t = Sys.time()))
+  expect_error(
+    audit_no_leakage(ok_dict, raw_events = malformed_events,
+                     window_hours = 24L),
+    regexp = "must contain"
+  )
+})

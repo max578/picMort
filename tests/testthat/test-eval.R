@@ -26,6 +26,10 @@ test_that("discrimination_metrics returns 4 metrics per model with CIs", {
   expect_gt(good_auroc, bad_auroc)
 })
 
+test_that("AUROC calculation is tie-aware", {
+  expect_equal(picMort:::simple_auroc(c(0.5, 0.5), c(0L, 1L)), 0.5)
+})
+
 test_that("decision_curve returns model + treat_all + treat_none rows", {
   set.seed(1L)
   n <- 200
@@ -53,7 +57,9 @@ test_that("subgroup_performance honours the small-cell suppression", {
   sg <- subgroup_performance(probs, cohort_test, n_min_events = 5L)
   ## With only 2 events, every cell suppressed -> 0 rows
   expect_equal(nrow(sg), 0L)
-  sg2 <- subgroup_performance(probs, cohort_test, n_min_events = 1L)
+  expect_no_warning(
+    sg2 <- subgroup_performance(probs, cohort_test, n_min_events = 1L)
+  )
   expect_gt(nrow(sg2), 0L)
 })
 

@@ -9,10 +9,11 @@ audit_no_leakage(feature_dict, raw_events = NULL, window_hours = 24L)
 \arguments{
 \item{feature_dict}{Feature dictionary from \code{\link[=build_features]{build_features()}}.}
 
-\item{raw_events}{Optional list of long-format event tables with a
-POSIXct column \code{t} and a numeric column \code{value}. When present,
-the function verifies that every event's offset from \code{intime} is
-strictly within the declared window.}
+\item{raw_events}{Optional list of long-format event tables. Each
+table must contain either numeric \code{t_hours} offsets from ICU
+admission, or POSIXct columns \code{t} and \code{intime} from which the
+offset can be derived. When present, the function verifies that
+every event is strictly within \verb{[0, window_hours)}.}
 
 \item{window_hours}{Prediction-window length used at extraction.}
 }

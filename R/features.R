@@ -134,7 +134,8 @@ build_features <- function(cohort, paths,
   ce <- merge(ce, panel_lookup, by = "itemid", all.x = TRUE)
 
   vital_long <- ce[, list(icustay_id = icustay_id, var = var,
-                          value = valuenum, t = charttime)]
+                          value = valuenum, t = charttime,
+                          t_hours = t_hours)]
   vital_agg <- aggregate_panel(vital_long)
 
   ## --- Labs from LABEVENTS ---------------------------------------------------
@@ -156,7 +157,8 @@ build_features <- function(cohort, paths,
   le <- merge(le, panel_lookup, by = "itemid", all.x = TRUE)
 
   lab_long <- le[, list(icustay_id = icustay_id, var = var,
-                        value = valuenum, t = charttime)]
+                        value = valuenum, t = charttime,
+                        t_hours = t_hours)]
   lab_agg <- aggregate_panel(lab_long)
 
   ## --- Wide pivot ------------------------------------------------------------
@@ -285,10 +287,11 @@ build_feature_dict <- function(x, panels, miss_cols, window_hours) {
 #' on raw events confirms every observation occurred in `[0, window)`.
 #'
 #' @param feature_dict Feature dictionary from [build_features()].
-#' @param raw_events Optional list of long-format event tables with a
-#'   POSIXct column `t` and a numeric column `value`. When present,
-#'   the function verifies that every event's offset from `intime` is
-#'   strictly within the declared window.
+#' @param raw_events Optional list of long-format event tables. Each
+#'   table must contain either numeric `t_hours` offsets from ICU
+#'   admission, or POSIXct columns `t` and `intime` from which the
+#'   offset can be derived. When present, the function verifies that
+#'   every event is strictly within `[0, window_hours)`.
 #' @param window_hours Prediction-window length used at extraction.
 #'
 #' @return Invisibly `TRUE` on pass; raises a structured error on fail.
@@ -328,6 +331,42 @@ audit_no_leakage <- function(feature_dict, raw_events = NULL,
   if (!all(feature_dict$window_hours == window_hours)) {
     stop("Leakage audit failed: feature dictionary has mixed window_hours; ",
          "expected ", window_hours, ".", call. = FALSE)
+  }
+  if (!is.null(raw_events)) {
+    if (inherits(raw_events, "data.frame")) raw_events <- list(raw_events)
+    bad <- data.table::rbindlist(lapply(seq_along(raw_events), function(i) {
+      ev <- raw_events[[i]]
+      if (is.null(ev) || nrow(ev) == 0L) return(NULL)
+      ev <- data.table::as.data.table(ev)
+      if ("t_hours" %in% names(ev)) {
+        offset <- ev$t_hours
+      } else if (all(c("t", "intime") %in% names(ev))) {
+        offset <- as.numeric(difftime(ev$t, ev$intime, units = "hours"))
+      } else {
+        stop("Leakage audit failed: raw_events[[", i, "]] must contain ",
+             "`t_hours` or both `t` and `intime`.", call. = FALSE)
+      }
+      bad_idx <- which(is.na(offset) | offset < 0 | offset >= window_hours)
+      if (length(bad_idx) == 0L) return(NULL)
+      bad_offset <- offset[bad_idx]
+      finite_bad <- bad_offset[is.finite(bad_offset)]
+      data.table::data.table(
+        raw_event = i,
+        n_bad = length(bad_idx),
+        min_t_hours = if (length(finite_bad)) min(finite_bad) else NA_real_,
+        max_t_hours = if (length(finite_bad)) max(finite_bad) else NA_real_
+      )
+    }), fill = TRUE)
+    if (nrow(bad) > 0L) {
+      detail <- apply(as.data.frame(bad), 1L, function(row) {
+        sprintf("raw_events[[%s]]: %s outside-window rows (range %s to %s h)",
+                row[["raw_event"]], row[["n_bad"]],
+                row[["min_t_hours"]], row[["max_t_hours"]])
+      })
+      stop("Leakage audit failed: raw event timestamps outside [0, ",
+           window_hours, ")h:\n - ", paste(detail, collapse = "\n - "),
+           call. = FALSE)
+    }
   }
   invisible(TRUE)
 }

@@ -3,14 +3,14 @@
 #' @description
 #' `r lifecycle::badge("experimental")`
 #'
-#' Returns a named list of canonical paths to PIC CSVs, resolved through
-#' the project-local `data_links/pic_v110/` symlink. The package never
-#' embeds the Box-synced source path; the symlink is the single point of
-#' indirection.
+#' Returns a named list of canonical paths to PIC CSVs. If the
+#' `PICMORT_DATA_DIR` environment variable is set, it is treated as the
+#' directory containing the PIC v1.1.0 CSVs. Otherwise paths are resolved
+#' through the project-local `data_links/pic_v110/` symlink.
 #'
 #' @param root Path to the directory containing `data_links/`. Defaults
-#'   to the project root (two levels above the package directory when
-#'   loaded via `devtools::load_all()`).
+#'   to `PICMORT_DATA_DIR` when that environment variable is set, or to
+#'   the project root containing `data_links/` otherwise.
 #' @param check Logical. If `TRUE` (default), verifies that every
 #'   referenced CSV exists and is readable.
 #'
@@ -21,9 +21,10 @@
 #'   `or_exam_reports`, `emr_symptoms`.
 #'
 #' @examples
-#' # Requires the registered PIC v1.1.0 source linked at
-#' # `<project root>/data_links/pic_v110/`. Run `check = FALSE` to inspect
-#' # the expected file names without touching disk.
+#' # Requires the registered PIC v1.1.0 source, either via
+#' # `PICMORT_DATA_DIR` or `<project root>/data_links/pic_v110/`.
+#' # Run `check = FALSE` to inspect the expected file names without
+#' # touching disk.
 #' \dontrun{
 #' paths <- pic_paths()
 #' names(paths)
@@ -37,8 +38,13 @@
 #' unlink(tmp, recursive = TRUE)
 #' @export
 pic_paths <- function(root = NULL, check = TRUE) {
-  root <- root %||% find_project_root()
-  base <- fs::path(root, "data_links", "pic_v110")
+  data_dir <- Sys.getenv("PICMORT_DATA_DIR", unset = "")
+  if (is.null(root) && nzchar(data_dir)) {
+    base <- fs::path_expand(data_dir)
+  } else {
+    root <- root %||% find_project_root()
+    base <- fs::path(root, "data_links", "pic_v110")
+  }
   files <- list(
     admissions          = "ADMISSIONS.csv",
     patients            = "PATIENTS.csv",
@@ -71,7 +77,7 @@ verify_pic_paths <- function(paths) {
       "PIC source files not reachable via `data_links/pic_v110/`.\n",
       "Missing: ", paste(names(paths)[missing], collapse = ", "), "\n",
       "Expected location: ", fs::path_dir(paths[[1]]),
-      "\nRun `picMort::ensure_data_links()` (G1) or check the symlink.",
+      "\nSet `PICMORT_DATA_DIR` or check the `data_links/pic_v110/` symlink.",
       call. = FALSE
     )
   }
