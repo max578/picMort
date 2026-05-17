@@ -21,6 +21,26 @@ knitr::opts_chunk$set(
   fig.align = "center"
 )
 set.seed(20260517L)
+
+# Stan toolchain detection. brms (used for the Bayesian
+# regularised-horseshoe fit) requires rstan + BH (Boost C++ headers).
+# On CI runners and minimal environments these may not be installed;
+# we detect their availability once and gate the Bayesian chunks
+# accordingly, so the rest of the vignette still renders.
+brms_ok <- requireNamespace("brms",  quietly = TRUE) &&
+           requireNamespace("rstan", quietly = TRUE) &&
+           requireNamespace("BH",    quietly = TRUE)
+```
+
+```{r brms-unavailable-notice, eval=!brms_ok, echo = FALSE, results = "asis"}
+cat(
+  "> **Note.** The Stan toolchain (`brms` + `rstan` + `BH`) is not ",
+  "available in this rendering environment, so the Bayesian ",
+  "regularised-horseshoe fit and its calibration / decision-curve / ",
+  "discrimination columns are skipped. Re-render on a host with the ",
+  "Stan toolchain installed to include the Bayesian model.\n",
+  sep = ""
+)
 ```
 
 > **Scope.** This vignette mirrors the P1 paediatric ICU mortality pipeline
@@ -176,7 +196,7 @@ fit_xgb <- fit_xgboost(features, split$train_idx, seed = 20260517L)
 fit_xgb$best_nrounds
 ```
 
-```{r fit-bayes, message = FALSE, warning = FALSE, results = "hide"}
+```{r fit-bayes, message = FALSE, warning = FALSE, results = "hide", eval=brms_ok}
 fit_bh <- fit_bayes_horseshoe(
   features, split$train_idx,
   chains = 2L, iter = 500L,
@@ -185,7 +205,7 @@ fit_bh <- fit_bayes_horseshoe(
 )
 ```
 
-```{r fit-bayes-summary}
+```{r fit-bayes-summary, eval=brms_ok}
 fit_bh$chains
 fit_bh$iter
 ```
@@ -202,19 +222,24 @@ y_test <- features$y[split$test_idx]
 
 pred_en  <- predict_mortality(fit_en,  x_test)
 pred_xgb <- predict_mortality(fit_xgb, x_test)
-pred_bh  <- predict_mortality(fit_bh,  x_test)
-
-head(pred_bh, 3)
+if (brms_ok) {
+  pred_bh <- predict_mortality(fit_bh, x_test)
+  head(pred_bh, 3)
+} else {
+  pred_bh <- NULL
+}
 ```
 
 # Stage 6 --- evaluation (the manuscript headline)
 
 ```{r eval, warning = FALSE}
 probs <- list(
-  elastic_net      = pred_en$prob_raw,
-  xgboost          = pred_xgb$prob_raw,
-  bayes_horseshoe  = pred_bh$prob_raw
+  elastic_net = pred_en$prob_raw,
+  xgboost     = pred_xgb$prob_raw
 )
+if (brms_ok) {
+  probs$bayes_horseshoe <- pred_bh$prob_raw
+}
 
 calib <- lapply(probs, calibration_suite,
                 y = y_test, n_boot = 200L, seed = 20260517L)
