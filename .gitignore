@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# R session / build artefacts
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rcheck/
+*.tar.gz
+.Rd2pdf*/
+
+# roxygen / pkgdown build outputs (regenerate from R/ + _pkgdown.yml)
+docs/
+
+# vignette intermediates
+vignettes/*.html
+vignettes/*.pdf
+inst/doc/
+
+# targets cache (locally-built; not source of truth)
+_targets/
+_targets.yaml.lock
+
+# rendered package binaries (separately archived per /rpkg)
+*.tgz
+*.zip

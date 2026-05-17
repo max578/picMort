@@ -1,0 +1,33 @@
+---
+title: "P3 --- Do Chinese paediatric clinical notes add signal beyond structured features?"
+author: "[Computational PhD student], Max Moldovan, Usman Iqbal"
+date: "2026-05-08"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{P3 --- multi-modal fusion}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+> **Subtitle.** Manuscript draft (vignette form) --- opens after P1 G6 + EMR_SYMPTOMS audit. Authors: Computational PhD student (Bond, lead), Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474), Usman Iqbal (Bond, senior).
+
+# Status
+
+Placeholder. Pre-requisite: one-day audit of `EMR_SYMPTOMS.csv`
+(language, structure, coverage). Authoring begins after P1 G6 and the
+audit, whichever is later.
+
+# Wedge
+
+Two-tower fusion: structured (P1) + Chinese clinical-text embeddings.
+Gated on the first-24h structured baseline from P1; the question is
+specifically the *incremental* value of text.
+
+# Open audit items (do before scoping)
+
+- Language confirmation (Chinese? template-filled?).
+- Structure (free text vs structured codes).
+- Coverage (what fraction of cohort has any entry within $T_0 + 24$ h?).
+- Temporal hygiene (no post-window leakage; same audit machinery as P1).

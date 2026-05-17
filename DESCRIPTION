@@ -1,0 +1,55 @@
+Package: picMort
+Title: Reproducible Paediatric ICU Mortality Benchmark on PIC v1.1.0
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Max", "Moldovan", email = "max.moldovan@adelaide.edu.au",
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-9680-8474")),
+    person("Usman", "Iqbal", role = c("aut", "ths")))
+Description: Tools and pipelines for the PICU mortality + LLM paper series
+    (P1 baseline, P2 inductive-CI inference, P3 multi-modal fusion).
+    Authoritative cohort specification, T+24h prediction-window feature
+    extraction, PIM3 reconstruction, calibration and decision-curve
+    evaluation. The package is the methodological substrate for the series;
+    individual papers are drafted as vignettes.
+License: MIT + file LICENSE
+URL: https://github.com/max578/picMort
+BugReports: https://github.com/max578/picMort/issues
+Encoding: UTF-8
+Language: en-AU
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 4.2)
+Imports:
+    data.table (>= 1.15.0),
+    glmnet (>= 4.1),
+    xgboost (>= 1.7),
+    recipes (>= 1.0),
+    rsample (>= 1.2),
+    ggplot2 (>= 3.5),
+    rlang,
+    stats,
+    utils,
+    fs,
+    rprojroot
+Suggests:
+    yardstick (>= 1.3),
+    probably (>= 1.0),
+    dcurves (>= 0.4),
+    brms (>= 2.20),
+    rstan (>= 2.30),
+    posterior,
+    bayesplot,
+    targets (>= 1.5),
+    tarchetypes,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    arrow,
+    fst,
+    viridisLite,
+    withr
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+LazyData: false

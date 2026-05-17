@@ -1,0 +1,222 @@
+---
+title: "Cohort specification — the contract for P1, P2, P3"
+author: "Max Moldovan, Usman Iqbal"
+date: "2026-05-08"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Cohort specification --- the contract}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+> **Subtitle.** PIC v1.1.0 paediatric ICU mortality, frozen study cohort. Authors: Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474), Usman Iqbal (Bond). Spec version **1.1.0** (2026-05-08).
+>
+> **Abstract.** Authoritative cohort definition for the PIC v1.1.0 paediatric-ICU mortality paper series. P1 (clean prediction-window baseline), P2 (inductive-CI inference) and P3 (multi-modal fusion) inherit this specification verbatim. Deviations are forbidden; sensitivity analyses operate on the same base cohort with documented filters.
+
+# Status
+
+**Frozen contract — version 1.1.0 (2026-05-08).** Inherited by P1, P2, P3.
+Changes require a new minor version, an entry in the changelog at the foot
+of this vignette, and an explicit Methods paragraph in any paper that
+adopts the new version. Sensitivity analyses do **not** require a version
+bump — they operate on the base cohort with documented filters.
+
+The cohort builder lives in `R/cohort.R::build_cohort()`; this vignette is
+the human-readable specification it implements. The `testthat` invariants
+in `tests/testthat/test-cohort-invariants.R` are the executable contract.
+
+# Data source
+
+- **Database**: Paediatric Intensive Care (PIC) v1.1.0, Tongji Hospital,
+  Tongji Medical College, Huazhong University of Science and Technology
+  (Wuhan; data centre: Shanghai). Open-access under registered DUA via
+  PhysioNet.
+- **Cohort window**: ICU admissions 2010-01 — 2018-12 (the V1.1.0 release
+  span; confirmed against `ADMISSIONS.csv` at gate G1).
+- **Mounting**: read-only via `data_links/pic_v110/` symlink.
+  `picMort::pic_paths()` is the only sanctioned access route. The
+  Box-synced source folder is never read directly by package code.
+
+# Unit of analysis
+
+One row per **first ICU stay** per patient. Multiple ICU stays within the
+same hospitalisation collapse to the index stay; ICU readmissions in
+later hospitalisations are excluded from this cohort entirely.
+
+Rationale: the prediction-window framing requires a well-defined T<sub>0</sub>;
+mixing first and subsequent stays leaks information through the
+patient's prior trajectory.
+
+# Inclusion criteria
+
+| # | Criterion | Source |
+|---|---|---|
+| I1 | Age at hospital admission $\in [0, 18]$ years | `PATIENTS.DOB`, `ADMISSIONS.ADMITTIME` |
+| I2 | Valid ICU admission and discharge timestamps (non-null, in window) | `ICUSTAYS.INTIME`, `ICUSTAYS.OUTTIME` |
+| I3 | First ICU stay per patient (`row_number() == 1` ordered by `INTIME`) | `ICUSTAYS` |
+| I4 | ICU length of stay $\geq$ `min_los_hours` (default **24 h**) | derived |
+
+# Exclusion criteria
+
+| # | Criterion | Note |
+|---|---|---|
+| E1 | Age $> 18$ y at admission | safety margin: also exclude rows with implausible negative age |
+| E2 | Any of `INTIME`, `OUTTIME`, `ADMITTIME`, `DISCHTIME` missing | hard fail |
+| E3 | `OUTTIME < INTIME` or `DISCHTIME < ADMITTIME` | data-quality flag, dropped |
+| E4 | ICU LOS $<$ `min_los_hours` | excluded from prediction-window analysis; counted in attrition |
+| E5 | Duplicate `subject_id` after first-stay selection | sanity check; should be empty |
+
+Each exclusion is logged with a reason in `cohort_attrition()` and rendered
+as a CONSORT-style flow diagram in the manuscript.
+
+# Outcome
+
+**Primary**: `hospital_expire_flag` --- in-hospital mortality, derived from
+`ADMISSIONS.HOSPITAL_EXPIRE_FLAG`. Cross-checked against
+`ADMISSIONS.DEATHTIME` (any non-null `DEATHTIME` within the index
+hospitalisation $\Rightarrow$ flag = 1; mismatches logged and reviewed).
+
+**Rationale (D1, locked default)**: in-hospital mortality is the most
+defensible paediatric-ICU outcome on PIC because (i) the database has
+no post-discharge follow-up, so 30-day mortality requires opaque
+imputation for any patient discharged before day 30 alive; (ii) it is the
+outcome PIM3 was developed to predict, so the comparator is principled;
+(iii) the v3 reference pipeline used 30-day mortality with unclear
+linkage --- a defect P1 explicitly fixes.
+
+# Prediction window (P1, P3)
+
+Features lock at **T<sub>0</sub> + 24 h**, where T<sub>0</sub> = `ICUSTAYS.INTIME`.
+No feature in the matrix may be derived from any timestamp at or after
+$T_0 + 24$ h. The hard rule: **no LOS, no discharge-time, no
+post-window vital, no post-window lab, ever.** `audit_no_leakage()`
+runs as a runtime invariant in the targets pipeline (gate G2).
+
+**Sensitivity arm (D2 secondary default)**: T<sub>0</sub> + 12 h. Reported as
+a row-level robustness check in P1 supplementary; no separate cohort
+build --- only the feature window changes.
+
+P2 inherits the 24-h window. P3 inherits the 24-h window for its
+structured tower; the text tower draws on `EMR_SYMPTOMS` entries dated
+$\le T_0 + 24$ h (audit happens at P3 G2 equivalent).
+
+# Variable contract
+
+The cohort table returned by `build_cohort()` has exactly these columns,
+in this order, with these dtypes:
+
+| Variable | Type | Source | Notes |
+|---|---|---|---|
+| `subject_id` | integer | `PATIENTS` | primary key |
+| `hadm_id` | integer | `ADMISSIONS` | join key |
+| `icustay_id` | integer | `ICUSTAYS` | join key for events |
+| `intime` | POSIXct (UTC) | `ICUSTAYS.INTIME` | T<sub>0</sub> |
+| `outtime` | POSIXct (UTC) | `ICUSTAYS.OUTTIME` | excluded from features |
+| `los_hours` | double | derived | excluded from features |
+| `age_months` | integer | derived from `DOB`, `ADMITTIME` | for paediatric subgroups |
+| `age_years` | double | derived | float for plotting |
+| `sex` | factor `c("F","M")` | `PATIENTS.GENDER` | unknown $\Rightarrow$ NA, excluded |
+| `hospital_expire_flag` | integer 0/1 | `ADMISSIONS` | outcome |
+| `admit_year` | integer | `ADMITTIME` | for stratification + internal-external split |
+| `is_surgical` | logical | derived from `SURGERY_VITAL_SIGNS` non-empty | binary |
+| `primary_icd_chapter` | factor | `DIAGNOSES_ICD` $\bowtie$ `D_ICD_DIAGNOSES`, top-N + "other" | |
+
+Time-varying features (vitals, labs, interventions) live in the
+**feature matrix** built by `build_features()`, not in the cohort
+table. The cohort table is row-static. Weight at admission is a PIM3
+input and is sourced inside `compute_pim3()`, not the cohort table
+(spec v1.1.0 change; see Changelog).
+
+# Splits and resampling (P1)
+
+- Stratified train/test split: 70/30, stratified jointly by
+  `hospital_expire_flag` and `admit_year` quartile. Test set frozen at
+  study start; touched once for final reporting.
+- Inner resampling (training set only): 5×5 nested CV --- outer 5-fold
+  for performance estimation, inner 5-fold for hyperparameter
+  selection. Bootstrap percentile / BCa CIs (1,000 reps) on outer-fold
+  metrics.
+- Internal-external arm (D4 default): train on $\text{admit\_year} \le t$,
+  test on $\text{admit\_year} = t + 1$, sliding through the cohort years.
+  Reported alongside the random split as a temporal-generalisation
+  robustness check.
+
+# Invariants (executable contract)
+
+Every cohort build must satisfy the invariants below. Violations raise
+errors in `assert_cohort_invariants()` and fail the targets pipeline.
+
+```r
+list(
+  n_min            = 8500L,        # PIC v1.1.0 + min_los_hours = 24
+  n_max            = 9000L,
+  mortality_rate   = c(0.075, 0.095),
+  age_range_years  = c(0, 18),
+  sex_levels       = c("F", "M"),
+  distinct_subject = TRUE,         # one row per subject_id
+  no_overlap_stays = TRUE          # ICU stays do not overlap within subject
+)
+```
+
+**Observed at G1 (2026-05-08, locked).** n = **8,736**; mortality
+**0.0844** (737 / 8,736 deaths); age range [0, 17.842] y; admit-year
+span 2060–2118 (PIC date-anonymisation preserves relative ordering);
+sex F/M = 3,684 / 5,052; surgical fraction 36 %. Cohort attrition
+recorded in `attr(cohort, "attrition")`: the LOS ≥ 24 h filter
+removes **4,075 of 12,811** (32 %) eligible stays — the largest
+single exclusion. The 32 % short-stay attrition is a manuscript
+Discussion-point on selection bias for the prediction-window framing
+(many of the excluded stays are likely "well kid briefly observed"
+or "very-early death"; the T+12 h sensitivity arm probes this).
+
+# Reproducibility
+
+- Seed: `20260508` (set at every stochastic step).
+- Build: `targets::tar_make()` reproduces every number in the manuscript
+  from raw CSVs in $<$30 min on a 16 GB laptop after `data_links/` is
+  mounted.
+- Environment: `renv.lock` at the package root pins every dependency.
+- Provenance: `picMort::pic_paths()` raises if any source CSV is missing,
+  so a half-mounted Box folder cannot silently produce a partial cohort.
+
+# Out of scope (P1)
+
+- Discharge disposition (alive-with-impairment, alive-without-impairment).
+- ICU readmission risk.
+- Length-of-stay prediction.
+- `EMR_SYMPTOMS` text features (deferred to P3).
+- PRISM-IV (kept conditionally; included only if every required field is
+  reconstructable from PIC without proxy --- decision logged at G3).
+
+# Reporting
+
+This cohort spec is referenced by file name (not by quote) in the
+Methods sections of P1, P2, P3. The TRIPOD-AI checklist for P1 points
+here for items 4a (study design), 5a (data source), 5b (inclusion /
+exclusion), 6a (outcome) and 6b (predictors).
+
+# Pedagogy (D5 default --- balanced)
+
+Vignettes are the pedagogical surface for Usman's PhD students. P1 is
+a teaching artefact as well as a manuscript: function names mirror the
+clinical concepts (`build_cohort`, `compute_pim3`, `decision_curve`),
+and the targets DAG mirrors the methods narrative one-to-one. Where
+pipeline mechanics could obscure clinical interpretation, callout
+boxes ("Why this matters clinically") sit alongside callouts for
+mechanics ("Why this matters mechanically"). Both are first-class.
+
+# Changelog
+
+- **1.0.0 — 2026-05-08** --- initial frozen spec. D1–D4 defaults locked
+  per series kickoff; D5 balanced clinical-and-mechanical pedagogy.
+- **1.1.0 — 2026-05-08** --- minor revision after gate G1 land.
+  (a) Removed `weight_kg_admit` from the cohort table — sourced
+  in `compute_pim3()` instead of `build_cohort()`, keeps the cohort
+  contract a thin row-static frame and avoids reading the 190 MB
+  `CHARTEVENTS` table at cohort-build time. (b) Concrete invariants
+  committed against PIC v1.1.0 (n = 8,736, mortality 0.0844). (c)
+  Attrition cascade documented; LOS ≥ 24 h filter is the dominant
+  exclusion (32 %) and a Discussion-point for selection bias.

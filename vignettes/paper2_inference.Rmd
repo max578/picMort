@@ -1,0 +1,33 @@
+---
+title: "P2 --- Honest finite-sample inference for paediatric mortality probability"
+author: "Max Moldovan, [Stats PhD student], Usman Iqbal"
+date: "2026-05-08"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{P2 --- inductive-CI inference}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+> **Subtitle.** Manuscript draft (vignette form) --- opens after P1 G6. Authors: Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474, lead), Stats PhD student (TBD), Usman Iqbal (Bond, senior).
+
+# Status
+
+Placeholder. Authoring begins after P1 reaches gate G6 (discrimination
++ subgroups). Inherits cohort and feature pipeline from P1.
+
+# Wedge
+
+Apply Max's inductive / globally-optimal CIs to predicted-probability
+inference. Re-analyse P1's headline claims and quantify how many
+spurious model-comparison conclusions in the prior literature would
+collapse under principled finite-sample inference.
+
+# Plan stub
+
+- Inherit `cohort` and `features` from `_targets.R`.
+- Add inductive-CI machinery as new `R/` module.
+- Re-analyse P1's calibration and DCA outputs.
+- Compare against bootstrap percentile and BCa as the field default.

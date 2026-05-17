@@ -1,0 +1,80 @@
+---
+title: "P1 --- Clean prediction-window mortality model on PIC v1.1.0"
+author: "[PhD student], Max Moldovan, Usman Iqbal"
+date: "2026-05-08"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{P1 --- clean prediction-window baseline}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+> **Subtitle.** Manuscript draft (vignette form). Authors: PhD student (Bond, lead), Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474), Usman Iqbal (Bond, senior).
+>
+> **Abstract.** *To be drafted at gates G4–G7.* Headline framing: calibration + decision-curve analysis on PIM3 vs penalised logistic regression vs XGBoost, with the prediction-window leakage defects of the prior literature explicitly fixed.
+
+# Status
+
+Draft scaffold. Sections populated progressively as gates land:
+
+- **G1 cohort** → §Methods.Cohort, §Results.Attrition
+- **G2 features + leakage audit** → §Methods.Features
+- **G3 PIM3** → §Methods.Baseline, §Results.PIM3
+- **G4 fits + calibration** → §Results.Calibration (headline)
+- **G5 DCA** → §Results.Decision-curve (headline)
+- **G6 discrimination + subgroups** → §Results.Discrimination
+- **G7 TRIPOD-AI compliance** → §Methods, §Supplementary
+- **G8 reproducibility** → §Methods.Reproducibility
+
+The cohort specification is inherited verbatim from `cohort_spec.Rmd`.
+This vignette does not redefine the cohort.
+
+# Background
+
+[To be written at G1. Frame: paediatric ICU mortality prediction; LOS
+leakage in the prior literature; PIM3 as the principled comparator;
+calibration + DCA as the headline framing.]
+
+# Methods
+
+## Cohort
+
+See `vignettes/cohort_spec.Rmd`. Brief recap in the manuscript.
+
+## Features
+
+See `R/features.R`. T<sub>0</sub> + 24 h lock; `audit_no_leakage()` enforced.
+
+## Baseline (PIM3)
+
+See `R/pim3.R`.
+
+## Models
+
+Penalised logistic regression (elastic net) and XGBoost. Hyperparameter
+search via inner 5-fold CV; canonical small grids documented in the
+package vignette and frozen at study start.
+
+## Evaluation
+
+Calibration suite (slope, intercept, ICI, calibration-in-the-large) +
+decision-curve analysis at 5%, 10%, 20% thresholds as the headline.
+AUROC, AUPRC, Brier, Brier skill score reported as supporting.
+
+## Reproducibility
+
+`targets::tar_make()` from raw CSVs to manuscript figures.
+
+# Results
+
+[Populated G1–G6.]
+
+# Discussion
+
+[Drafted G7.]
+
+# TRIPOD-AI checklist
+
+[Item-by-item; supplementary appendix.]

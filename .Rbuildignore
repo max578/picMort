@@ -1,0 +1,5 @@
+^LICENSE\.md$
+^_targets\.R$
+^_targets$
+^\.Rproj\.user$
+^README\.Rmd$
