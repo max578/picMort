@@ -13,7 +13,7 @@ Description: Tools and pipelines for the PICU mortality + LLM paper series
     evaluation. The package is the methodological substrate for the series;
     individual papers are drafted as vignettes.
 License: MIT + file LICENSE
-URL: https://github.com/max578/picMort
+URL: https://github.com/max578/picMort, https://max578.github.io/picMort
 BugReports: https://github.com/max578/picMort/issues
 Encoding: UTF-8
 Language: en-AU

@@ -1,0 +1,114 @@
+url: https://max578.github.io/picMort/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    intro:
+      text: Home
+      href: index.html
+    reference:
+      text: Reference
+      href: reference/index.html
+    articles:
+      text: Articles
+      href: articles/index.html
+    news:
+      text: Changelog
+      href: news/index.html
+    github:
+      icon: fab fa-github
+      href: https://github.com/max578/picMort
+      aria-label: GitHub
+
+footer:
+  structure:
+    left:  [developed_by, built_with]
+    right: [package_links]
+  components:
+    developed_by: >
+      Developed by
+      <a href="https://orcid.org/0000-0001-9680-8474">Max Moldovan</a>
+      and Usman Iqbal.
+    package_links: >
+      <a href="https://github.com/max578/picMort">GitHub</a>
+
+reference:
+  - title: Cohort
+    desc: >
+      Authoritative PIC v1.1.0 cohort spec — path resolution, attrition,
+      invariants, and leakage audit. The cohort spec is the contract every
+      paper in the series inherits verbatim.
+    contents:
+      - pic_paths
+      - build_cohort
+      - cohort_attrition
+      - assert_cohort_invariants
+      - audit_no_leakage
+
+  - title: Features
+    desc: >
+      T+24h prediction-window feature engineering: structured covariates,
+      ICD-10 chapter mapping, train/test split, and the default
+      pre-processing recipe.
+    contents:
+      - build_features
+      - icd10_to_chapter
+      - make_train_test_split
+      - default_recipe
+
+  - title: PIM3 baseline
+    desc: >
+      Paediatric Index of Mortality 3 reconstruction from PIC fields,
+      risk-group binning, and face-validity checks against published
+      coefficients.
+    contents:
+      - compute_pim3
+      - pim3_risk_group
+      - pim3_face_validity
+
+  - title: Model fits
+    desc: >
+      The three justified P1 model families — penalised logistic
+      regression, gradient-boosted trees, and Bayesian regularised
+      horseshoe — plus a unified prediction interface.
+    contents:
+      - fit_elastic_net
+      - fit_xgboost
+      - fit_bayes_horseshoe
+      - predict_mortality
+
+  - title: Calibration, DCA, discrimination, subgroups
+    desc: >
+      Calibration-first evaluation suite: calibration slope/intercept/ICI,
+      decision-curve net benefit at clinically meaningful thresholds,
+      discrimination metrics (supporting), subgroup performance, and
+      publication-grade plots.
+    contents:
+      - calibration_suite
+      - decision_curve
+      - discrimination_metrics
+      - subgroup_performance
+      - plot_calibration
+      - plot_decision_curve
+
+articles:
+  - title: Paper series
+    desc: >
+      The package's four vignettes — frozen cohort contract plus the
+      three manuscript-shaped vignettes (P1 baseline, P2 inductive-CI
+      inference, P3 multi-modal fusion).
+    navbar: ~
+    contents:
+      - cohort_spec
+      - paper1_baseline
+      - paper2_inference
+      - paper3_fusion
+
+news:
+  releases:
+    - text: "Development"

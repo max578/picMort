@@ -1,0 +1,33 @@
+# Citation file for the picMort R package.
+#
+# When the P1 paper is accepted at Pediatric Critical Care Medicine,
+# replace the placeholder block below with the published reference:
+#
+#   bibentry(
+#     bibtype  = "Article",
+#     title    = "Calibration-First Mortality Prediction in a Paediatric Intensive Care Cohort: A Bayesian Regularised-Horseshoe Approach With Patient-Level Uncertainty",
+#     author   = c(person("[PhD student]"),
+#                  person("Max", "Moldovan"),
+#                  person("Usman", "Iqbal")),
+#     journal  = "Pediatric Critical Care Medicine",
+#     year     = <year-of-publication>,
+#     volume   = "<vol>",
+#     number   = "<no>",
+#     pages    = "<pp>",
+#     doi      = "<doi>"
+#   )
+#
+# Until then, citation("picMort") returns only the software entry below.
+
+bibentry(
+  bibtype = "Manual",
+  title   = "picMort: Reproducible Paediatric ICU Mortality Benchmark on PIC V1.1.0",
+  author  = c(
+    person("Max", "Moldovan",
+           comment = c(ORCID = "0000-0001-9680-8474")),
+    person("Usman", "Iqbal")
+  ),
+  year    = format(Sys.Date(), "%Y"),
+  note    = sprintf("R package version %s", meta$Version),
+  url     = "https://github.com/max578/picMort"
+)
