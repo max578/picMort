@@ -21,16 +21,17 @@ jobs:
 
     name: ${{ matrix.config.os }} (${{ matrix.config.r }})
 
-    # macOS + R-devel is allowed to fail. macOS arm64 has no binary CRAN
-    # repo for R-devel (4.7), so `setup-r-dependencies` must compile
-    # heavy compiled packages (notably brms / rstan / RcppParallel /
-    # BH-using transitive deps) from source. Builds either time out or
-    # fail on missing system headers. This is a widely-recognised
-    # platform limitation for brms-using packages and matches what
-    # r-lib's own brms/cmdstanr CI does. The cell still runs for
-    # visibility; its failure does not gate the matrix conclusion.
-    continue-on-error: ${{ matrix.config.os == 'macos-latest' && matrix.config.r == 'devel' }}
-
+    # macOS + R-devel is intentionally OMITTED from the matrix.
+    #
+    # macOS arm64 has no binary CRAN repo for R-devel (4.7+), so
+    # setup-r-dependencies must compile heavy compiled packages
+    # (notably brms / rstan / RcppParallel / BH-using transitive
+    # deps) from source. Builds either time out or fail on missing
+    # system headers. This is a well-known platform limitation for
+    # brms-using packages and matches what r-lib's own brms/cmdstanr
+    # CI does. R-devel signal is still covered by ubuntu-latest-devel
+    # and windows-latest-devel; macOS coverage stays on macos-release
+    # and macos-oldrel-1.
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +40,6 @@ jobs:
           - {os: ubuntu-latest,  r: 'devel'}
           - {os: ubuntu-latest,  r: 'oldrel-1'}
           - {os: macos-latest,   r: 'release'}
-          - {os: macos-latest,   r: 'devel'}
           - {os: macos-latest,   r: 'oldrel-1'}
           - {os: windows-latest, r: 'release'}
           - {os: windows-latest, r: 'devel'}
