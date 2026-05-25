@@ -23,10 +23,21 @@ decision_curve(
 
 \item{plot_grid}{If \code{TRUE} (default), additionally returns a fine
 grid of thresholds (every 1 \%) for plot rendering.}
+
+\item{n_boot}{Bootstrap replicates for paired CIs on net benefit
+at the prespecified \code{thresholds} and on the Brier skill score.
+Default 0 (no CIs); typical production value 1000.}
+
+\item{seed}{Integer seed for the bootstrap (used only when
+\code{n_boot > 0}). Default 20260508.}
 }
 \value{
-A \code{data.table} of (model, threshold, net_benefit, type).
-\code{type} is \code{"model"}, \code{"all"}, or \code{"none"}.
+A \code{data.table} of (model, threshold, net_benefit, type)
+when \code{n_boot = 0}, where \code{type} is \code{"model"}, \code{"all"}, or
+\code{"none"}. When \code{n_boot > 0}, additional rows with
+\verb{(model, metric, estimate, lower, upper)} columns carry paired
+bootstrap 95 \% CIs on net benefit at each prespecified threshold
+and on the Brier skill score.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}

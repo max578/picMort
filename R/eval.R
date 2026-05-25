@@ -173,9 +173,18 @@ calibration_curve_points <- function(prob, y, ngrid = 200L) {
 #'   `c(0.05, 0.10, 0.20)` plus a fine grid for plotting.
 #' @param plot_grid If `TRUE` (default), additionally returns a fine
 #'   grid of thresholds (every 1 %) for plot rendering.
+#' @param n_boot Bootstrap replicates for paired CIs on net benefit
+#'   at the prespecified `thresholds` and on the Brier skill score.
+#'   Default 0 (no CIs); typical production value 1000.
+#' @param seed Integer seed for the bootstrap (used only when
+#'   `n_boot > 0`). Default 20260508.
 #'
-#' @return A `data.table` of (model, threshold, net_benefit, type).
-#'   `type` is `"model"`, `"all"`, or `"none"`.
+#' @return A `data.table` of (model, threshold, net_benefit, type)
+#'   when `n_boot = 0`, where `type` is `"model"`, `"all"`, or
+#'   `"none"`. When `n_boot > 0`, additional rows with
+#'   `(model, metric, estimate, lower, upper)` columns carry paired
+#'   bootstrap 95 % CIs on net benefit at each prespecified threshold
+#'   and on the Brier skill score.
 #'
 #' @examples
 #' set.seed(20260517L)
