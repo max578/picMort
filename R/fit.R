@@ -2,21 +2,22 @@
 ## Gate G4 -- model fits
 ##
 ## Three frequentist comparators + one Bayesian extension:
-##   * Penalised logistic regression (elastic net, glmnet)
+##   * Penalized logistic regression (elastic net, glmnet)
 ##   * XGBoost (gradient-boosted trees)
-##   * Bayesian elastic-net via brms with regularised horseshoe prior
-##     -- the JTM clinical-functional wedge: every patient gets a
-##     posterior 95 % credible interval on predicted mortality.
+##   * Bayesian elastic-net via brms with regularized horseshoe prior
+##     -- the package's headline functional output: every patient
+##     receives a posterior 95 % credible interval on predicted
+##     mortality.
 ##
 ## All three share the same `default_recipe()` preprocessing
-## (median/mode imputation, NZV drop, one-hot, normalise). Each fit
+## (median/mode imputation, NZV drop, one-hot, normalize). Each fit
 ## function preps the recipe on the training fold and stores the
 ## prepped recipe in the returned object so `predict_mortality()`
 ## bakes the test fold consistently.
 ##
 ## Class imbalance (~7.4 % mortality after the LOS filter): glmnet
 ## uses observation weights; XGBoost uses `scale_pos_weight`; the
-## Bayesian model uses the regularised horseshoe + Bernoulli
+## Bayesian model uses the regularized horseshoe + Bernoulli
 ## likelihood (no weights -- the prior shrinks irrelevant
 ## coefficients while the posterior absorbs the imbalance).
 ## ============================================================================
@@ -84,13 +85,13 @@ bake_new <- function(prep, x_new, predictors) {
        baked = baked)
 }
 
-#' Fit penalised logistic regression (elastic net)
+#' Fit penalized logistic regression (elastic net)
 #'
 #' @description
 #' `r lifecycle::badge("experimental")`
 #'
 #' Inner CV over the (alpha, lambda) grid; class-weighted to handle
-#' the ~7-9 % paediatric ICU mortality rate. Selects best alpha by
+#' the ~7-9 % pediatric ICU mortality rate. Selects best alpha by
 #' minimum CV deviance and uses `lambda.1se` for parsimony.
 #'
 #' @param features Output of [build_features()].
@@ -239,24 +240,24 @@ fit_xgboost <- function(features, train_idx,
        type = "xgboost")
 }
 
-#' Fit Bayesian logistic regression with regularised horseshoe prior
+#' Fit Bayesian logistic regression with regularized horseshoe prior
 #'
 #' @description
 #' `r lifecycle::badge("experimental")`
 #'
-#' Uses `brms::brm()` with a Bernoulli likelihood and a regularised
+#' Uses `brms::brm()` with a Bernoulli likelihood and a regularized
 #' horseshoe prior on the coefficients (Carvalho 2010 / Piironen
 #' & Vehtari 2017). The prior shrinks irrelevant coefficients
 #' aggressively while leaving informative ones effectively
-#' unregularised; the posterior gives every patient a credible
-#' interval on predicted mortality probability -- the JTM
-#' clinical-functional wedge.
+#' unregularized; the posterior gives every patient a credible
+#' interval on predicted mortality probability -- the package's
+#' headline functional output.
 #'
 #' @inheritParams fit_elastic_net
 #' @param chains MCMC chains. Default 2.
 #' @param iter Total iterations per chain (warmup + sampling). Default 1000.
 #' @param par_ratio Prior on the proportion of non-zero coefficients
-#'   (regularised-horseshoe `par_ratio`). Default 0.1 (~10 % expected
+#'   (regularized-horseshoe `par_ratio`). Default 0.1 (~10 % expected
 #'   to be non-zero from ~100 candidate predictors).
 #' @param adapt_delta NUTS adaptation. Default 0.95.
 #' @param cores Number of cores. Default = `chains`.

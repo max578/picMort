@@ -190,7 +190,9 @@ calibration_curve_points <- function(prob, y, ngrid = 200L) {
 #' @export
 decision_curve <- function(probs, y,
                             thresholds = c(0.05, 0.10, 0.20),
-                            plot_grid = TRUE) {
+                            plot_grid = TRUE,
+                            n_boot = 0L,
+                            seed = 20260508L) {
   y <- as.integer(y)
   prev <- mean(y)
   n <- length(y)
@@ -198,29 +200,69 @@ decision_curve <- function(probs, y,
     sort(unique(c(thresholds, seq(0.005, 0.50, by = 0.005))))
   else thresholds
 
+  nb_at <- function(p, y, pt) {
+    nn <- length(y)
+    pred_pos <- p >= pt
+    tp <- sum(pred_pos & y == 1L)
+    fp <- sum(pred_pos & y == 0L)
+    (tp / nn) - (fp / nn) * (pt / (1 - pt))
+  }
+
   rows <- list()
   for (mod in names(probs)) {
     p <- probs[[mod]]
     for (pt in threshold_grid) {
-      pred_pos <- p >= pt
-      tp <- sum(pred_pos & y == 1L)
-      fp <- sum(pred_pos & y == 0L)
-      nb <- (tp / n) - (fp / n) * (pt / (1 - pt))
       rows[[length(rows) + 1L]] <-
         data.table::data.table(model = mod, threshold = pt,
-                               net_benefit = nb, type = "model")
+                               net_benefit = nb_at(p, y, pt),
+                               type = "model",
+                               lower = NA_real_, upper = NA_real_)
     }
   }
   for (pt in threshold_grid) {
     nb_all <- prev - (1 - prev) * (pt / (1 - pt))
     rows[[length(rows) + 1L]] <-
       data.table::data.table(model = "treat_all", threshold = pt,
-                             net_benefit = nb_all, type = "all")
+                             net_benefit = nb_all, type = "all",
+                             lower = NA_real_, upper = NA_real_)
     rows[[length(rows) + 1L]] <-
       data.table::data.table(model = "treat_none", threshold = pt,
-                             net_benefit = 0, type = "none")
+                             net_benefit = 0, type = "none",
+                             lower = NA_real_, upper = NA_real_)
   }
-  data.table::rbindlist(rows)
+  out <- data.table::rbindlist(rows)
+
+  # Bootstrap CIs at the headline thresholds (cheap: only `thresholds`,
+  # not the fine plot grid). Matches the standalone pipeline's
+  # `decision_curve(..., n_boot = N_BOOT)` semantics so that the package
+  # reproduces the manuscript's per-model CIs identically.
+  if (isTRUE(n_boot > 0L) && length(thresholds)) {
+    set.seed(seed)
+    boot_rows <- list()
+    for (mod in names(probs)) {
+      p <- probs[[mod]]
+      for (pt in thresholds) {
+        v <- replicate(n_boot, {
+          idx <- sample.int(n, n, replace = TRUE)
+          nb_at(p[idx], y[idx], pt)
+        })
+        v <- v[is.finite(v)]
+        boot_rows[[length(boot_rows) + 1L]] <- data.table::data.table(
+          model = mod, threshold = pt,
+          lower = stats::quantile(v, 0.025, names = FALSE),
+          upper = stats::quantile(v, 0.975, names = FALSE)
+        )
+      }
+    }
+    boot_dt <- data.table::rbindlist(boot_rows)
+    for (i in seq_len(nrow(boot_dt))) {
+      out[model == boot_dt$model[i] &
+          abs(threshold - boot_dt$threshold[i]) < 1e-9 &
+          type == "model",
+          `:=`(lower = boot_dt$lower[i], upper = boot_dt$upper[i])]
+    }
+  }
+  out
 }
 
 #' Discrimination metrics with bootstrap CIs (supporting role)
@@ -256,26 +298,37 @@ discrimination_metrics <- function(probs, y, reference = NULL,
   if (is.null(reference)) {
     reference <- if ("pim3" %in% names(probs)) "pim3" else names(probs)[1L]
   }
-  ref_brier <- mean((probs[[reference]] - y)^2)
+  ref_brier_full <- mean((probs[[reference]] - y)^2)
 
-  point_metrics <- function(p, y) {
+  point_metrics_for <- function(mod) {
+    p <- probs[[mod]]
     auroc <- simple_auroc(p, y)
     auprc <- simple_auprc(p, y)
     brier <- mean((p - y)^2)
-    bss <- 1 - brier / max(ref_brier, .Machine$double.eps)
+    bss   <- 1 - brier / max(ref_brier_full, .Machine$double.eps)
     c(auroc = auroc, auprc = auprc, brier = brier, brier_skill = bss)
   }
 
-  set.seed(seed)
+  ## AUROC / AUPRC / Brier: per-model independent bootstrap.
+  ## BSS: paired bootstrap with shared indices across all models, using
+  ## the bootstrap-sample reference Brier as denominator in each replicate
+  ## (the reference model's BSS is then exactly 0 / [0, 0]). Two passes
+  ## seeded identically so AUROC/AUPRC/Brier CIs are unchanged from prior
+  ## release.
   rows <- list()
+  metric_names_indep <- c("auroc", "auprc", "brier")
+
+  set.seed(seed)
   for (mod in names(probs)) {
     p <- probs[[mod]]
-    pt <- point_metrics(p, y)
+    pt <- point_metrics_for(mod)
     boot_mat <- replicate(n_boot, {
       idx <- sample.int(n, n, replace = TRUE)
-      point_metrics(p[idx], y[idx])
+      c(auroc = simple_auroc(p[idx], y[idx]),
+        auprc = simple_auprc(p[idx], y[idx]),
+        brier = mean((p[idx] - y[idx])^2))
     })
-    for (m in names(pt)) {
+    for (m in metric_names_indep) {
       v <- boot_mat[m, ]; v <- v[is.finite(v)]
       rows[[length(rows) + 1L]] <- data.table::data.table(
         model = mod, metric = m,
@@ -285,6 +338,33 @@ discrimination_metrics <- function(probs, y, reference = NULL,
       )
     }
   }
+
+  set.seed(seed)
+  mod_names <- names(probs)
+  ref_p     <- probs[[reference]]
+  bss_boot  <- matrix(NA_real_, nrow = n_boot, ncol = length(mod_names),
+                      dimnames = list(NULL, mod_names))
+  for (b in seq_len(n_boot)) {
+    idx          <- sample.int(n, n, replace = TRUE)
+    y_b          <- y[idx]
+    ref_brier_b  <- mean((ref_p[idx] - y_b)^2)
+    denom        <- max(ref_brier_b, .Machine$double.eps)
+    for (mod in mod_names) {
+      brier_b           <- mean((probs[[mod]][idx] - y_b)^2)
+      bss_boot[b, mod]  <- 1 - brier_b / denom
+    }
+  }
+  for (mod in mod_names) {
+    pt <- point_metrics_for(mod)
+    v  <- bss_boot[, mod]; v <- v[is.finite(v)]
+    rows[[length(rows) + 1L]] <- data.table::data.table(
+      model = mod, metric = "brier_skill",
+      estimate = unname(pt["brier_skill"]),
+      lower = stats::quantile(v, 0.025, names = FALSE),
+      upper = stats::quantile(v, 0.975, names = FALSE)
+    )
+  }
+
   data.table::rbindlist(rows)
 }
 
@@ -421,15 +501,15 @@ plot_calibration <- function(calib_list) {
     data.table::data.table(model = nm, prob = d$prob, observed = d$observed)
   }))
   ggplot2::ggplot(curves,
-                  ggplot2::aes(x = prob, y = observed, colour = model)) +
+                  ggplot2::aes(x = prob, y = observed, color = model)) +
     ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed",
-                         colour = "grey40") +
+                         color = "grey40") +
     ggplot2::geom_line(linewidth = 0.8) +
-    ggplot2::scale_colour_viridis_d(end = 0.85) +
+    ggplot2::scale_color_viridis_d(end = 0.85) +
     ggplot2::coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
     ggplot2::labs(x = "Predicted probability of in-hospital mortality",
                   y = "Observed proportion (loess)",
-                  colour = "Model",
+                  color = "Model",
                   title  = "Calibration -- PIC v1.1.0 held-out test fold") +
     ggplot2::theme_minimal(base_size = 11)
 }
@@ -461,19 +541,27 @@ plot_decision_curve <- function(dca) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("`ggplot2` is required for plot_decision_curve.", call. = FALSE)
   }
-  ggplot2::ggplot(dca, ggplot2::aes(x = threshold, y = net_benefit,
-                                    colour = model, linetype = type)) +
-    ggplot2::geom_hline(yintercept = 0, colour = "grey80") +
+  d <- data.table::copy(dca)
+  model_ids <- setdiff(unique(d$model), c("treat_all", "treat_none"))
+  ## Role-split palette: model curves on viridis (matches plot_calibration);
+  ## treat-all / treat-none on greys so the color channel encodes
+  ## "model vs reference" without crowding the model hues.
+  model_cols <- viridisLite::viridis(length(model_ids), end = 0.85)
+  names(model_cols) <- model_ids
+  scale_vals <- c(model_cols, "treat_all" = "grey55", "treat_none" = "grey25")
+  ggplot2::ggplot(d, ggplot2::aes(x = threshold, y = net_benefit,
+                                    color = model, linetype = type)) +
+    ggplot2::geom_hline(yintercept = 0, color = "grey80") +
     ggplot2::geom_line(linewidth = 0.8) +
-    ggplot2::scale_colour_viridis_d(end = 0.85) +
+    ggplot2::scale_color_manual(values = scale_vals, drop = FALSE) +
     ggplot2::scale_linetype_manual(values = c(model = "solid",
                                               all   = "dotdash",
                                               none  = "dotted")) +
     ggplot2::coord_cartesian(xlim = c(0, 0.5),
-                             ylim = c(-0.01, max(dca$net_benefit) * 1.1)) +
+                             ylim = c(-0.01, max(d$net_benefit) * 1.1)) +
     ggplot2::labs(x = "Decision threshold (probability of mortality)",
                   y = "Net benefit",
-                  colour = "Model", linetype = "Curve",
+                  color = "Model", linetype = "Curve",
                   title  = "Decision curve analysis -- PIC v1.1.0 test fold") +
     ggplot2::theme_minimal(base_size = 11)
 }

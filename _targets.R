@@ -1,6 +1,16 @@
-# _targets.R -- picMort pipeline DAG
+# _targets.R -- picMort development pipeline DAG
 #
-# End-to-end build:
+# DEVELOPMENT-ONLY SCAFFOLD. This file is a developer convenience for
+# iterating on the P1 / P2 / P3 series. **It is NOT the production
+# reporting pipeline.** The production reporting pipeline that produces
+# every number in the PICU P1 manuscript is the standalone script at
+# `deliverables/pccm_submission_pkg_v3/pipeline/full_pipeline.R`, which
+# replicates the gate structure below but is self-contained (no `targets`
+# dependency, no `renv` initialisation required).
+#
+# This file is **not** part of the P1 submission package.
+#
+# End-to-end build (development use):
 #   targets::tar_make()
 #
 # Gates (mirroring vignettes/paper1_baseline.Rmd):

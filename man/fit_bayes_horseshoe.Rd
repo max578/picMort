@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit.R
 \name{fit_bayes_horseshoe}
 \alias{fit_bayes_horseshoe}
-\title{Fit Bayesian logistic regression with regularised horseshoe prior}
+\title{Fit Bayesian logistic regression with regularized horseshoe prior}
 \usage{
 fit_bayes_horseshoe(
   features,
@@ -25,7 +25,7 @@ fit_bayes_horseshoe(
 \item{iter}{Total iterations per chain (warmup + sampling). Default 1000.}
 
 \item{par_ratio}{Prior on the proportion of non-zero coefficients
-(regularised-horseshoe \code{par_ratio}). Default 0.1 (~10 \% expected
+(regularized-horseshoe \code{par_ratio}). Default 0.1 (~10 \% expected
 to be non-zero from ~100 candidate predictors).}
 
 \item{adapt_delta}{NUTS adaptation. Default 0.95.}
@@ -41,13 +41,13 @@ A list with \code{model} (a \code{brmsfit}), \code{prep}, \code{predictors},
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
-Uses \code{brms::brm()} with a Bernoulli likelihood and a regularised
+Uses \code{brms::brm()} with a Bernoulli likelihood and a regularized
 horseshoe prior on the coefficients (Carvalho 2010 / Piironen
 & Vehtari 2017). The prior shrinks irrelevant coefficients
 aggressively while leaving informative ones effectively
-unregularised; the posterior gives every patient a credible
-interval on predicted mortality probability -- the JTM
-clinical-functional wedge.
+unregularized; the posterior gives every patient a credible
+interval on predicted mortality probability -- the package's
+headline functional output.
 }
 \examples{
 # `fit_bayes_horseshoe()` compiles a Stan model via `brms`. Compilation

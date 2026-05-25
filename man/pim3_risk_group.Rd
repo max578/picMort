@@ -2,7 +2,7 @@
 % Please edit documentation in R/pim3.R
 \name{pim3_risk_group}
 \alias{pim3_risk_group}
-\title{PIM3 risk-group ICD-10 mapping (paediatric, simplified)}
+\title{PIM3 risk-group ICD-10 mapping (pediatric, simplified)}
 \usage{
 pim3_risk_group(code)
 }
@@ -17,7 +17,7 @@ Character vector of risk-group labels (or \code{NA}).
 
 Maps an ICD-10 code to one of \code{"low"}, \code{"high"}, \code{"very_high"},
 or \code{NA_character_} (no risk-group assignment). Covers the most
-frequent paediatric admissions per Straney 2013 Tables 2-4. Codes
+frequent pediatric admissions per Straney 2013 Tables 2-4. Codes
 not in the lookup return \code{NA}, treated as default-risk for PIM3.
 }
 \examples{

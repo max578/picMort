@@ -1,22 +1,22 @@
 Package: picMort
-Title: Reproducible Paediatric ICU Mortality Benchmark on PIC V1.1.0
+Title: Reproducible Pediatric ICU Mortality Benchmark on PIC V1.1.0
 Version: 0.1.1
 Authors@R: c(
     person("Max", "Moldovan", email = "max.moldovan@adelaide.edu.au",
            role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-9680-8474")),
     person("Usman", "Iqbal", role = c("aut", "ths")))
-Description: Tools and pipelines for the PICU mortality + LLM paper series
-    (P1 baseline, P2 inductive-CI inference, P3 multi-modal fusion).
+Description: Tools and pipelines for a calibration-first pediatric ICU
+    mortality benchmark on the open-access PIC v1.1.0 database.
     Authoritative cohort specification, T+24h prediction-window feature
     extraction, PIM3 reconstruction, calibration and decision-curve
-    evaluation. The package is the methodological substrate for the series;
-    individual papers are drafted as vignettes.
+    evaluation. The package is the methodological substrate for the
+    companion manuscript, illustrated end to end in a worked vignette.
 License: MIT + file LICENSE
 URL: https://github.com/max578/picMort, https://max578.github.io/picMort
 BugReports: https://github.com/max578/picMort/issues
 Encoding: UTF-8
-Language: en-AU
+Language: en-US
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends:

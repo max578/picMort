@@ -23,20 +23,34 @@ A \code{data.table} keyed on \code{icustay_id} with columns:
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
-Computes the Paediatric Index of Mortality 3 (Straney et al. 2013)
+Computes the Pediatric Index of Mortality 3 (Straney et al. 2013)
 from PIC \code{CHARTEVENTS} and the \code{cohort} table. Components that
 cannot be recovered from PIC default to 0 (Straney convention) and
 are listed in \code{proxy_flags}.
 
 Demonstrating the linear-predictor calculation without PIC source files
-(this is what \code{compute_pim3()} produces internally per patient):
+(this is what \code{compute_pim3()} produces internally per patient).
+This is the ANZICS PIM2 & PIM3 booklet's worked example (Jan 2019,
+p. 11): a 6 y-old girl, leukaemia post-1st-induction, intubated, SBP
+70 mmHg, PaO2 65 mmHg, FiO2 0.7, base excess −12 mmol/L, reactive
+pupils, non-elective. The booklet gives PIM3val = −0.11114 and risk
+of death = 47.22\%.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{beta <- picMort:::pim3_coefficients()
-sbp_used <- 120
-logit <- beta$intercept +
-         beta$sbp_linear * sbp_used +
-         beta$sbp_abs_dev_120 * abs(sbp_used - 120)
-stats::plogis(logit) # baseline PIM3 risk
+logit <-
+  beta$intercept +                       # -1.7928
+  beta$pupils_fixed          * 0 +        # reactive pupils
+  beta$elective              * 0 +        # non-elective
+  beta$mech_vent             * 1 +        # intubated
+  beta$base_excess_abs       * 12 +       # |-12|
+  beta$sbp_linear            * 70 +       # SBP 70 mmHg
+  beta$sbp_squared_over_1000 * (70 * 70 / 1000) +
+  beta$fio2_pao2             * (100 * 0.7 / 65) +  # 100*FiO2/PaO2
+  beta$recov_card_byp        * 0 +
+  beta$recov_card_nonbyp     * 0 +
+  beta$recov_noncard         * 0 +
+  beta$very_high_risk_dx     * 1          # leukaemia after 1st induction
+stats::plogis(logit)  # ≈ 0.4722
 }\if{html}{\out{</div>}}
 }
 \examples{
@@ -49,6 +63,6 @@ table(pim3_tbl$risk_group)
 }
 }
 \references{
-Straney L et al. (2013). PIM3: an updated Paediatric
+Straney L et al. (2013). PIM3: an updated Pediatric
 Index of Mortality. Pediatr Crit Care Med 14(7):673-681.
 }

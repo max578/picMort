@@ -2,9 +2,14 @@
 % Please edit documentation in R/cohort.R
 \name{build_cohort}
 \alias{build_cohort}
-\title{Build the frozen P1/P2/P3 cohort}
+\title{Build the canonical study cohort}
 \usage{
-build_cohort(paths, min_los_hours = 24L, verbose = TRUE)
+build_cohort(
+  paths,
+  min_los_hours = 24L,
+  prediction_window_hours = min_los_hours,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{paths}{Output of \code{\link[=pic_paths]{pic_paths()}}.}
@@ -12,6 +17,13 @@ build_cohort(paths, min_los_hours = 24L, verbose = TRUE)
 \item{min_los_hours}{Minimum ICU length-of-stay in hours required for
 the prediction-window framing. Default 24 (T+24h lock). Set to 12
 for the T+12h sensitivity arm.}
+
+\item{prediction_window_hours}{Prediction window in hours. Used by
+\code{is_surgical} to filter \code{SURGERY_VITAL_SIGNS} evidence to rows that
+occur strictly before \code{T0 + prediction_window_hours}. Without this
+filter, surgery evidence appearing only after the prediction-window
+close leaks future information. Default = \code{min_los_hours} (T+24h
+main analysis); pass \code{12L} for the T+12h sensitivity arm.}
 
 \item{verbose}{Logical. Emit cohort-attrition log lines.}
 }
@@ -27,10 +39,9 @@ Constructs the canonical study cohort per \code{vignettes/cohort_spec.Rmd}:
 first ICU stay per patient; age 0-18 y at admission; valid ICU
 admit/discharge timestamps; in-hospital mortality outcome attached.
 
-Cohort assembly is the single source of truth shared by P1 (baseline),
-P2 (inductive-CI inference) and P3 (multi-modal fusion). Deviations are
-forbidden; sensitivity analyses operate on the same base cohort with
-documented filters.
+Cohort assembly is the single source of truth for the calibration-first
+analysis. Deviations are forbidden; sensitivity analyses operate on the
+same base cohort with documented filters.
 }
 \examples{
 # `build_cohort()` reads the registered PIC v1.1.0 CSVs. A pre-built

@@ -13,7 +13,7 @@
 ## `proxy_flags` list-column marking which entries used a default.
 ##
 ## Reference:
-##   Straney L, Clements A, Parslow RC, et al. Paediatric Index of
+##   Straney L, Clements A, Parslow RC, et al. Pediatric Index of
 ##   Mortality 3: An Updated Model for Predicting Mortality in
 ##   Pediatric Intensive Care. Pediatr Crit Care Med. 2013;14:673-681.
 ##
@@ -26,35 +26,74 @@
 
 #' PIM3 coefficient table (Straney et al. 2013)
 #'
+#' Coefficients are the **published PIM3 values** verbatim from
+#' Straney L et al. (2013) and the ANZICS PIM2 & PIM3 information booklet
+#' (Jan 2019). The linear-predictor expression is, exactly:
+#'
+#'   PIM3val = (3.8233 * Pupils) − (0.5378 * Elective) + (0.9763 * MechVent)
+#'           + (0.0671 * |Base Excess|) − (0.0431 * SBP)
+#'           + (0.1716 * (SBP² / 1000)) + (0.4214 * (100*FiO2/PaO2))
+#'           − (1.2246 * Recov_CardBypPr) − (0.8762 * Recov_CardNonBypPr)
+#'           − (1.5164 * Recov_NonCardPr) + (1.6225 * VHRdiag)
+#'           + (1.0725 * HRdiag) − (2.1766 * LRdiag) − 1.7928
+#'
+#' Missing-value defaults (PIM3-specific, differ from PIM2): SBP → 120;
+#' (100*FiO2/PaO2) → 0.23 (room-air normal, not 0 as in PIM2); Base
+#' Excess → 0; all binary fields → 0. Only one of VHRdiag/HRdiag/LRdiag
+#' may be 1 at a time (highest-applicable-risk wins).
+#'
 #' @keywords internal
 #' @noRd
 pim3_coefficients <- function() {
   list(
-    intercept              = -0.6234,
-    sbp_linear             = -0.0431,    # × SBP (mmHg)
-    sbp_abs_dev_120        =  0.01395,   # × |SBP - 120|
-    fio2_pao2              =  0.4214,    # × (FiO2*100 / PaO2)
-    base_excess_abs        =  0.1667,    # × |base excess|
-    mech_vent              =  1.3352,
-    elective               =  0.9763,
-    recovery_no_bypass     =  1.6225,
-    recovery_bypass        =  1.0725,
-    low_risk_dx            = -1.5770,
-    high_risk_dx           =  1.0044,
-    very_high_risk_dx      =  2.4451,
-    # encoded -1.2018 reflects sign convention in Straney et al. (2013)
-    pupils_fixed           = -1.2018
+    intercept             = -1.7928,
+    pupils_fixed          =  3.8233,
+    elective              = -0.5378,
+    mech_vent             =  0.9763,
+    base_excess_abs       =  0.0671,
+    sbp_linear            = -0.0431,
+    sbp_squared_over_1000 =  0.1716,
+    fio2_pao2             =  0.4214,    # × (100 * FiO2_fraction / PaO2_mmHg)
+    recov_card_byp        = -1.2246,    # recovery from cardiac bypass procedure
+    recov_card_nonbyp     = -0.8762,    # recovery from non-bypass cardiac procedure
+    recov_noncard         = -1.5164,    # recovery from non-cardiac procedure
+    very_high_risk_dx     =  1.6225,
+    high_risk_dx          =  1.0725,
+    low_risk_dx           = -2.1766
   )
 }
 
-#' PIM3 risk-group ICD-10 mapping (paediatric, simplified)
+#' Default values for PIM3 missing-component handling
+#'
+#' Per the ANZICS PIM2 & PIM3 booklet (Jan 2019), PIM3 — unlike PIM2 —
+#' uses non-zero defaults for two components: SBP → 120 mmHg, and
+#' (100 * FiO2 / PaO2) → 0.23 (room-air "normal" substitute, derived
+#' from PaO2 in air ≈ (0.21*100)/90). All other components default to 0.
+#'
+#' @keywords internal
+#' @noRd
+pim3_defaults <- function() {
+  list(
+    sbp        = 120,
+    fio2_pao2  = 0.23,
+    base_excess = 0,
+    mech_vent  = 0L,
+    elective   = 0L,
+    pupils_fixed = 0L,
+    recov_card_byp    = 0L,
+    recov_card_nonbyp = 0L,
+    recov_noncard     = 0L
+  )
+}
+
+#' PIM3 risk-group ICD-10 mapping (pediatric, simplified)
 #'
 #' @description
 #' `r lifecycle::badge("experimental")`
 #'
 #' Maps an ICD-10 code to one of `"low"`, `"high"`, `"very_high"`,
 #' or `NA_character_` (no risk-group assignment). Covers the most
-#' frequent paediatric admissions per Straney 2013 Tables 2-4. Codes
+#' frequent pediatric admissions per Straney 2013 Tables 2-4. Codes
 #' not in the lookup return `NA`, treated as default-risk for PIM3.
 #'
 #' @param code Character vector of ICD-10 codes.
@@ -74,24 +113,44 @@ pim3_risk_group <- function(code) {
   cu  <- toupper(code[ok])
   base3 <- substr(cu, 1L, 3L)
 
+  # PIM3 LRdiag (Straney 2013 / ANZICS booklet PIM3 §7):
+  # asthma, bronchiolitis, croup, OSA, DKA, seizures.
   is_low <- base3 %in% c("J45","J46",          # asthma
                           "J21",                # bronchiolitis
                           "J05",                # croup
-                          "G40", "R56",         # seizure
+                          "G40", "R56",         # seizures
                           "G473")               # OSA (G47.3 prefix-3)
   is_low <- is_low | grepl("^E1[0-4]\\.?1", cu) # DKA E10.1/E11.1/E13.1/E14.1
 
+  # PIM3 HRdiag (ANZICS booklet PIM3 §6):
+  # spontaneous cerebral haemorrhage, cardiomyopathy/myocarditis, HLHS,
+  # neurodegenerative disorder, necrotising enterocolitis.
+  # Septic shock is collected as HRdiag in the registry but is NOT used
+  # in the PIM3 calculation, so we omit it here.
   is_high <- base3 %in% c("I42",               # cardiomyopathy
                            "I40", "I41",        # myocarditis
-                           "G31", "G37",        # neurodegenerative
-                           "D81")               # SCID
+                           "G31", "G37",        # neurodegenerative disorder
+                           "I60", "I61", "I62", # spontaneous cerebral haemorrhage
+                           "P77",               # necrotising enterocolitis (perinatal NEC)
+                           "K55")               # necrotising enterocolitis (vascular intestinal)
   is_high <- is_high | grepl("^Q23\\.?4", cu)   # HLHS Q23.4
 
-  is_very <- base3 %in% c("I46",               # post-cardiac-arrest
-                           "K72",               # liver failure
-                           "C91", "C92", "C95") # leukaemia
+  # PIM3 VHRdiag (ANZICS booklet PIM3 §5):
+  # cardiac arrest preceding ICU admission, SCID, leukaemia/lymphoma after
+  # 1st induction, BMT recipient, liver failure (NOT post-liver-transplant),
+  # SCID+BMT, leukaemia+BMT. Necrotising enterocolitis (code 6) is no
+  # longer in VHRdiag in PIM3 and is now coded as HRdiag — already handled
+  # above.
+  is_very <- base3 %in% c("I46",               # cardiac arrest preceding ICU
+                           "D81",               # SCID (very-high in PIM3, not high)
+                           "C81", "C82", "C83", "C84", "C85", # lymphomas
+                           "C91", "C92", "C93", "C94", "C95", # leukaemias
+                           "K72")               # liver failure (acute/chronic)
   is_very <- is_very | grepl("^Z94\\.?(8|81|84)", cu)  # post-BMT
 
+  # Highest-applicable-risk wins (PIM3 §11 Q&A: "while a patient can
+  # have a low, high, and very high risk score, only the highest risk
+  # score is used in the PIM3 calculation").
   out[ok][is_very] <- "very_high"
   out[ok][is_high & is.na(out[ok])] <- "high"
   out[ok][is_low  & is.na(out[ok])] <- "low"
@@ -103,21 +162,35 @@ pim3_risk_group <- function(code) {
 #' @description
 #' `r lifecycle::badge("experimental")`
 #'
-#' Computes the Paediatric Index of Mortality 3 (Straney et al. 2013)
+#' Computes the Pediatric Index of Mortality 3 (Straney et al. 2013)
 #' from PIC `CHARTEVENTS` and the `cohort` table. Components that
 #' cannot be recovered from PIC default to 0 (Straney convention) and
 #' are listed in `proxy_flags`.
 #'
 #' Demonstrating the linear-predictor calculation without PIC source files
-#' (this is what `compute_pim3()` produces internally per patient):
+#' (this is what `compute_pim3()` produces internally per patient).
+#' This is the ANZICS PIM2 & PIM3 booklet's worked example (Jan 2019,
+#' p. 11): a 6 y-old girl, leukaemia post-1st-induction, intubated, SBP
+#' 70 mmHg, PaO2 65 mmHg, FiO2 0.7, base excess −12 mmol/L, reactive
+#' pupils, non-elective. The booklet gives PIM3val = −0.11114 and risk
+#' of death = 47.22%.
 #'
 #' ```r
 #' beta <- picMort:::pim3_coefficients()
-#' sbp_used <- 120
-#' logit <- beta$intercept +
-#'          beta$sbp_linear * sbp_used +
-#'          beta$sbp_abs_dev_120 * abs(sbp_used - 120)
-#' stats::plogis(logit) # baseline PIM3 risk
+#' logit <-
+#'   beta$intercept +                       # -1.7928
+#'   beta$pupils_fixed          * 0 +        # reactive pupils
+#'   beta$elective              * 0 +        # non-elective
+#'   beta$mech_vent             * 1 +        # intubated
+#'   beta$base_excess_abs       * 12 +       # |-12|
+#'   beta$sbp_linear            * 70 +       # SBP 70 mmHg
+#'   beta$sbp_squared_over_1000 * (70 * 70 / 1000) +
+#'   beta$fio2_pao2             * (100 * 0.7 / 65) +  # 100*FiO2/PaO2
+#'   beta$recov_card_byp        * 0 +
+#'   beta$recov_card_nonbyp     * 0 +
+#'   beta$recov_noncard         * 0 +
+#'   beta$very_high_risk_dx     * 1          # leukaemia after 1st induction
+#' stats::plogis(logit)  # ≈ 0.4722
 #' ```
 #'
 #' @param cohort A cohort `data.table` from [build_cohort()].
@@ -130,7 +203,7 @@ pim3_risk_group <- function(code) {
 #'   (factor: low / default / high / very_high), `sbp_used` (numeric),
 #'   `proxy_flags` (list-column; vector of components that defaulted).
 #'
-#' @references Straney L et al. (2013). PIM3: an updated Paediatric
+#' @references Straney L et al. (2013). PIM3: an updated Pediatric
 #'   Index of Mortality. Pediatr Crit Care Med 14(7):673-681.
 #'
 #' @examples
@@ -199,11 +272,18 @@ compute_pim3 <- function(cohort, paths, window_hours = 1L) {
   risk_dt <- risk_dt[, list(icustay_id, risk_group)]
 
   ## --- Recovery proxy: surgical flag from cohort -----------------------------
-  ## We use cohort$is_surgical as a proxy for "recovery from procedure".
-  ## Cardiac-bypass flag is unrecoverable from PIC fields; default 0.
+  ## PIC v1.1.0 does not distinguish cardiac vs non-cardiac surgery
+  ## cleanly, nor bypass vs non-bypass cardiac procedures. The
+  ## `is_surgical` flag (any SURGERY_VITAL_SIGNS row within the first-24h
+  ## window per the window-aware cohort spec) is mapped to PIM3's
+  ## `Recov_NonCardPr` — the most clinically common recovery case in a
+  ## general pediatric ICU. The two cardiac-procedure indicators
+  ## (`Recov_CardBypPr`, `Recov_CardNonBypPr`) default to 0 with a
+  ## documented proxy flag.
   recovery_dt <- cohort[, list(icustay_id,
-                               recovery_no_bypass = as.integer(is_surgical),
-                               recovery_bypass    = 0L)]
+                               recov_card_byp    = 0L,
+                               recov_card_nonbyp = 0L,
+                               recov_noncard     = as.integer(is_surgical))]
 
   ## --- Assemble component table ---------------------------------------------
   pim3 <- merge(cohort[, list(icustay_id)], sbp_tbl,
@@ -211,19 +291,25 @@ compute_pim3 <- function(cohort, paths, window_hours = 1L) {
   pim3 <- merge(pim3, risk_dt,     by = "icustay_id", all.x = TRUE)
   pim3 <- merge(pim3, recovery_dt, by = "icustay_id", all.x = TRUE)
 
-  ## Default unrecovered components (Straney convention).
-  pim3[, sbp_used := ifelse(is.na(sbp_first_hour_min),
-                            120, sbp_first_hour_min)]
-  pim3[, fio2_pao2    := 0]
-  pim3[, base_excess  := 0]
-  pim3[, mech_vent    := 0L]
-  pim3[, elective     := 0L]
-  pim3[, pupils_fixed := 0L]
+  ## Default unrecovered components (PIM3-specific; see pim3_defaults()).
+  ## PIM3 differs from PIM2 on SBP and FiO2/PaO2 defaults.
+  defaults <- pim3_defaults()
+  pim3[, sbp_used    := ifelse(is.na(sbp_first_hour_min),
+                               defaults$sbp, sbp_first_hour_min)]
+  pim3[, fio2_pao2    := defaults$fio2_pao2]  # 0.23 (room-air normal), NOT 0
+  pim3[, base_excess  := defaults$base_excess]
+  pim3[, mech_vent    := defaults$mech_vent]
+  pim3[, elective     := defaults$elective]
+  pim3[, pupils_fixed := defaults$pupils_fixed]
 
   ## Proxy flags per row.
   flag_each <- function(sbp_first, rg) {
-    f <- c("fio2_pao2", "base_excess", "mech_vent", "elective",
-           "pupils_fixed", "cardiac_bypass")
+    f <- c("fio2_pao2_default_0.23",   # PIC has no first-hour ABG → default
+           "base_excess",
+           "mech_vent",
+           "elective",
+           "pupils_fixed",
+           "cardiac_bypass_status")     # 3-way recovery split unrecoverable
     if (is.na(sbp_first)) f <- c(f, "sbp")
     if (rg == "default")  f <- c(f, "risk_group_default")
     f
@@ -231,21 +317,22 @@ compute_pim3 <- function(cohort, paths, window_hours = 1L) {
   pim3[, proxy_flags := mapply(flag_each, sbp_first_hour_min, risk_group,
                                SIMPLIFY = FALSE)]
 
-  ## --- Linear predictor ------------------------------------------------------
+  ## --- Linear predictor (Straney 2013 / ANZICS Jan 2019 booklet) -------------
   pim3[, pim3_logit :=
          beta$intercept +
-         beta$sbp_linear      * sbp_used +
-         beta$sbp_abs_dev_120 * abs(sbp_used - 120) +
-         beta$fio2_pao2       * fio2_pao2 +
-         beta$base_excess_abs * abs(base_excess) +
-         beta$mech_vent       * mech_vent +
-         beta$elective        * elective +
-         beta$recovery_no_bypass * recovery_no_bypass +
-         beta$recovery_bypass    * recovery_bypass +
-         ifelse(risk_group == "low",       beta$low_risk_dx, 0) +
-         ifelse(risk_group == "high",      beta$high_risk_dx, 0) +
+         beta$pupils_fixed          * pupils_fixed +
+         beta$elective              * elective +
+         beta$mech_vent             * mech_vent +
+         beta$base_excess_abs       * abs(base_excess) +
+         beta$sbp_linear            * sbp_used +
+         beta$sbp_squared_over_1000 * (sbp_used * sbp_used / 1000) +
+         beta$fio2_pao2             * fio2_pao2 +
+         beta$recov_card_byp        * recov_card_byp +
+         beta$recov_card_nonbyp     * recov_card_nonbyp +
+         beta$recov_noncard         * recov_noncard +
          ifelse(risk_group == "very_high", beta$very_high_risk_dx, 0) +
-         beta$pupils_fixed    * pupils_fixed]
+         ifelse(risk_group == "high",      beta$high_risk_dx,      0) +
+         ifelse(risk_group == "low",       beta$low_risk_dx,       0)]
 
   pim3[, pim3 := stats::plogis(pim3_logit)]
 

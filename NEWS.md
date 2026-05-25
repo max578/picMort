@@ -14,7 +14,7 @@ features.
   `predict_mortality(fit_bh, ...)` ran even though `fit_bh` had not been
   created. The Bayesian fit is now gated behind the
   `PICMORT_RUN_VIGNETTE_BAYES=true` environment variable, and `fit_bh`
-  is initialised to `NULL` in the setup chunk so the no-Bayes path is
+  is initialized to `NULL` in the setup chunk so the no-Bayes path is
   well defined.
 - `audit_no_leakage()` now matches its documentation: it inspects the
   supplied raw event offsets, not just feature names and
@@ -41,7 +41,7 @@ features.
 
 ### Documentation and packaging
 
-- `Suggests:` adds `BH` because the P1 vignette explicitly checks for
+- `Suggests:` adds `BH` because the calibration-first vignette explicitly checks for
   it alongside `brms` and `rstan` (the C++ Boost headers used by the
   Stan toolchain).
 - `.Rbuildignore` now excludes `.DS_Store`, locally generated
@@ -68,16 +68,16 @@ First tagged release at `https://github.com/max578/picMort`. The
 release closes Tiers 0–7 of the `/rpkg` audit recorded in
 `../picMort_cran_audit/audit_report.md` (audit date 2026-05-17), with
 the explicit exceptions documented in §Release-readiness state below.
-The package is published for installation via r-universe and direct
-GitHub install; CRAN submission is deferred per the audit verdict
-until a cohort-agnostic successor package is extracted post-P3.
+The package is published as a source archive alongside the
+calibration-first manuscript; CRAN submission is deferred per the
+audit verdict until a cohort-agnostic successor package is extracted
+later.
 
 ### Contents at v0.1.0
 
 - **Frozen cohort specification for PIC v1.1.0** — vignette `cohort_spec`
-  is the contract shared by P1, P2, and P3 in the PICU mortality + LLM
-  paper series. First ICU stay per patient, age 0–18 years, ICU LOS ≥ 24
-  hours.
+  is the canonical contract for the calibration-first analysis. First
+  ICU stay per patient, age 0–18 years, ICU LOS ≥ 24 hours.
 - **Prediction-window-locked feature extraction at T+24h post-ICU admit**
   with a runtime leakage audit (`audit_no_leakage()`).
 - **PIM3 reconstruction** (`compute_pim3()`, `pim3_risk_group()`,
@@ -90,9 +90,9 @@ until a cohort-agnostic successor package is extracted post-P3.
   large), `decision_curve()` (per-threshold net benefit),
   `discrimination_metrics()` (tie-aware Mann–Whitney AUROC,
   AUPRC, Brier score and Brier skill score), `subgroup_performance()`.
-- **Three model fits** — penalised logistic regression (`fit_elastic_net()`
+- **Three model fits** — penalized logistic regression (`fit_elastic_net()`
   via glmnet), gradient-boosted trees (`fit_xgboost()`), and Bayesian
-  regularised-horseshoe logistic regression (`fit_bayes_horseshoe()`
+  regularized-horseshoe logistic regression (`fit_bayes_horseshoe()`
   via brms / Stan).
 - **testthat coverage** of pure-math units (calibration, decision-curve,
   ICD-10 chapter mapping, PIM3 risk groups); 9 of 23 tests skip
@@ -105,7 +105,7 @@ until a cohort-agnostic successor package is extracted post-P3.
   `cran-comments.md`).
 - `@examples` blocks present on every exported function. Functions
   that require the registered-DUA PIC v1.1.0 data wrap their example
-  in `\dontrun{}` and additionally exercise pure-math behaviour
+  in `\dontrun{}` and additionally exercise pure-math behavior
   against the synthetic toy cohort at `inst/extdata/toy_cohort.rds`.
 - `lifecycle::badge("experimental")` applied to every exported
   function; the lifecycle ladder is published in `API_STABILITY.md`.
@@ -115,23 +115,17 @@ until a cohort-agnostic successor package is extracted post-P3.
 - `pkgdown` site configuration ships in `_pkgdown.yml`; render is
   author-driven (no auto-deploy from CI in this release).
 - `inst/CITATION` lists the package, with placeholders for the
-  eventual P1 (PCCM) and JOSS DOIs.
-- The three paper vignettes (`paper1_baseline`, `paper2_inference`,
-  `paper3_fusion`) flesh out the substrate at v0.1.0; P1 is runnable
-  end-to-end on the toy cohort, P2 and P3 are honest pre-publication
-  scaffolds.
+  eventual manuscript (PCCM) and JOSS DOIs.
+- The toy-cohort vignette `paper1_baseline` exercises the calibration-first
+  pipeline end-to-end; the cohort-spec vignette documents the canonical
+  contract.
 
 ### Explicit non-goals at v0.1.0
 
-- **No r-universe enrolment.** The package is ready for it (the
-  upstream registry repo at `max578/max578.r-universe.dev` plus a
-  one-line `packages.json` is the only remaining step), but
-  enrolment is deferred pending author-side go-ahead per the
-  `/rpkg-walkthrough` W7 / charter §1 publication discipline.
 - **No JOSS submission.** `paper.md` is not drafted in this release.
 - **No CRAN submission.** Per the audit verdict, CRAN consideration
-  returns only after a cohort-agnostic successor package is
-  extracted post-P3.
+  returns only after a cohort-agnostic successor package is extracted
+  later.
 
 ### Known gaps documented for the next minor release
 
@@ -140,7 +134,5 @@ until a cohort-agnostic successor package is extracted post-P3.
 - 9 of 26 testthat tests still skip gracefully without a PIC v1.1.0
   data symlink. The synthetic toy cohort unlocks the pure-math units
   but cannot replace the real-cohort coverage paths.
-- The paper-vignette stubs for P2 and P3 will be fleshed out as the
-  underlying analyses land.
 - Add CI (`R CMD check` matrix plus coverage) before any external
   release announcement beyond GitHub / author-side installs.

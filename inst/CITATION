@@ -1,11 +1,11 @@
 # Citation file for the picMort R package.
 #
-# When the P1 paper is accepted at Pediatric Critical Care Medicine,
+# When the companion paper is accepted at Pediatric Critical Care Medicine,
 # replace the placeholder block below with the published reference:
 #
 #   bibentry(
 #     bibtype  = "Article",
-#     title    = "Calibration-First Mortality Prediction in a Paediatric Intensive Care Cohort: A Bayesian Regularised-Horseshoe Approach With Patient-Level Uncertainty",
+#     title    = "Calibration-First Mortality Prediction in a Pediatric Intensive Care Cohort: A Bayesian Regularized-Horseshoe Approach With Patient-Level Uncertainty",
 #     author   = c(person("[PhD student]"),
 #                  person("Max", "Moldovan"),
 #                  person("Usman", "Iqbal")),
@@ -21,7 +21,7 @@
 
 bibentry(
   bibtype = "Manual",
-  title   = "picMort: Reproducible Paediatric ICU Mortality Benchmark on PIC V1.1.0",
+  title   = "picMort: Reproducible Pediatric ICU Mortality Benchmark on PIC V1.1.0",
   author  = c(
     person("Max", "Moldovan",
            comment = c(ORCID = "0000-0001-9680-8474")),

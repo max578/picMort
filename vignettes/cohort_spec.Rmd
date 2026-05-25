@@ -1,5 +1,5 @@
 ---
-title: "Cohort specification — the contract for P1, P2, P3"
+title: "Cohort specification --- the canonical study cohort"
 author: "Max Moldovan, Usman Iqbal"
 date: "2026-05-08"
 output:
@@ -7,22 +7,23 @@ output:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Cohort specification --- the contract}
+  %\VignetteIndexEntry{Cohort specification --- the canonical study cohort}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-> **Subtitle.** PIC v1.1.0 paediatric ICU mortality, frozen study cohort. Authors: Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474), Usman Iqbal (Bond). Spec version **1.1.0** (2026-05-08).
+> **Subtitle.** PIC v1.1.0 pediatric ICU mortality, canonical study cohort. Authors: Max Moldovan (Adelaide, ORCID 0000-0001-9680-8474), Usman Iqbal (Bond). Spec version **1.1.0** (2026-05-08).
 >
-> **Abstract.** Authoritative cohort definition for the PIC v1.1.0 paediatric-ICU mortality paper series. P1 (clean prediction-window baseline), P2 (inductive-CI inference) and P3 (multi-modal fusion) inherit this specification verbatim. Deviations are forbidden; sensitivity analyses operate on the same base cohort with documented filters.
+> **Abstract.** Authoritative cohort definition for the PIC v1.1.0 pediatric ICU mortality analysis. The calibration-first manuscript pipeline inherits this specification verbatim. Deviations are forbidden; sensitivity analyses operate on the same base cohort with documented filters.
 
 # Status
 
-**Frozen contract — version 1.1.0 (2026-05-08).** Inherited by P1, P2, P3.
-Changes require a new minor version, an entry in the changelog at the foot
-of this vignette, and an explicit Methods paragraph in any paper that
-adopts the new version. Sensitivity analyses do **not** require a version
-bump — they operate on the base cohort with documented filters.
+**Frozen contract --- version 1.1.0 (2026-05-08).** Inherited by the
+calibration-first manuscript pipeline. Changes require a new minor
+version, an entry in the changelog at the foot of this vignette, and an
+explicit Methods paragraph in any paper that adopts the new version.
+Sensitivity analyses do **not** require a version bump --- they operate
+on the base cohort with documented filters.
 
 The cohort builder lives in `R/cohort.R::build_cohort()`; this vignette is
 the human-readable specification it implements. The `testthat` invariants
@@ -30,9 +31,9 @@ in `tests/testthat/test-cohort-invariants.R` are the executable contract.
 
 # Data source
 
-- **Database**: Paediatric Intensive Care (PIC) v1.1.0, Tongji Hospital,
+- **Database**: Pediatric Intensive Care (PIC) v1.1.0, Tongji Hospital,
   Tongji Medical College, Huazhong University of Science and Technology
-  (Wuhan; data centre: Shanghai). Open-access under registered DUA via
+  (Wuhan; data center: Shanghai). Open-access under registered DUA via
   PhysioNet.
 - **Cohort window**: ICU admissions 2010-01 — 2018-12 (the V1.1.0 release
   span; confirmed against `ADMISSIONS.csv` at gate G1).
@@ -43,8 +44,8 @@ in `tests/testthat/test-cohort-invariants.R` are the executable contract.
 # Unit of analysis
 
 One row per **first ICU stay** per patient. Multiple ICU stays within the
-same hospitalisation collapse to the index stay; ICU readmissions in
-later hospitalisations are excluded from this cohort entirely.
+same hospitalization collapse to the index stay; ICU readmissions in
+later hospitalizations are excluded from this cohort entirely.
 
 Rationale: the prediction-window framing requires a well-defined T<sub>0</sub>;
 mixing first and subsequent stays leaks information through the
@@ -77,17 +78,17 @@ as a CONSORT-style flow diagram in the manuscript.
 **Primary**: `hospital_expire_flag` --- in-hospital mortality, derived from
 `ADMISSIONS.HOSPITAL_EXPIRE_FLAG`. Cross-checked against
 `ADMISSIONS.DEATHTIME` (any non-null `DEATHTIME` within the index
-hospitalisation $\Rightarrow$ flag = 1; mismatches logged and reviewed).
+hospitalization $\Rightarrow$ flag = 1; mismatches logged and reviewed).
 
 **Rationale (D1, locked default)**: in-hospital mortality is the most
-defensible paediatric-ICU outcome on PIC because (i) the database has
+defensible pediatric-ICU outcome on PIC because (i) the database has
 no post-discharge follow-up, so 30-day mortality requires opaque
 imputation for any patient discharged before day 30 alive; (ii) it is the
 outcome PIM3 was developed to predict, so the comparator is principled;
-(iii) the v3 reference pipeline used 30-day mortality with unclear
-linkage --- a defect P1 explicitly fixes.
+(iii) earlier reference pipelines used 30-day mortality with unclear
+linkage --- a defect this specification explicitly fixes.
 
-# Prediction window (P1, P3)
+# Prediction window
 
 Features lock at **T<sub>0</sub> + 24 h**, where T<sub>0</sub> = `ICUSTAYS.INTIME`.
 No feature in the matrix may be derived from any timestamp at or after
@@ -96,12 +97,10 @@ post-window vital, no post-window lab, ever.** `audit_no_leakage()`
 runs as a runtime invariant in the targets pipeline (gate G2).
 
 **Sensitivity arm (D2 secondary default)**: T<sub>0</sub> + 12 h. Reported as
-a row-level robustness check in P1 supplementary; no separate cohort
+a row-level robustness check in the manuscript supplement; no separate cohort
 build --- only the feature window changes.
 
-P2 inherits the 24-h window. P3 inherits the 24-h window for its
-structured tower; the text tower draws on `EMR_SYMPTOMS` entries dated
-$\le T_0 + 24$ h (audit happens at P3 G2 equivalent).
+
 
 # Variable contract
 
@@ -116,7 +115,7 @@ in this order, with these dtypes:
 | `intime` | POSIXct (UTC) | `ICUSTAYS.INTIME` | T<sub>0</sub> |
 | `outtime` | POSIXct (UTC) | `ICUSTAYS.OUTTIME` | excluded from features |
 | `los_hours` | double | derived | excluded from features |
-| `age_months` | integer | derived from `DOB`, `ADMITTIME` | for paediatric subgroups |
+| `age_months` | integer | derived from `DOB`, `ADMITTIME` | for pediatric subgroups |
 | `age_years` | double | derived | float for plotting |
 | `sex` | factor `c("F","M")` | `PATIENTS.GENDER` | unknown $\Rightarrow$ NA, excluded |
 | `hospital_expire_flag` | integer 0/1 | `ADMISSIONS` | outcome |
@@ -130,7 +129,7 @@ table. The cohort table is row-static. Weight at admission is a PIM3
 input and is sourced inside `compute_pim3()`, not the cohort table
 (spec v1.1.0 change; see Changelog).
 
-# Splits and resampling (P1)
+# Splits and resampling
 
 - Stratified train/test split: 70/30, stratified jointly by
   `hospital_expire_flag` and `admit_year` quartile. Test set frozen at
@@ -182,26 +181,24 @@ or "very-early death"; the T+12 h sensitivity arm probes this).
 - Provenance: `picMort::pic_paths()` raises if any source CSV is missing,
   so a half-mounted Box folder cannot silently produce a partial cohort.
 
-# Out of scope (P1)
+# Out of scope
 
 - Discharge disposition (alive-with-impairment, alive-without-impairment).
 - ICU readmission risk.
 - Length-of-stay prediction.
-- `EMR_SYMPTOMS` text features (deferred to P3).
+- `EMR_SYMPTOMS` text features.
 - PRISM-IV (kept conditionally; included only if every required field is
   reconstructable from PIC without proxy --- decision logged at G3).
 
 # Reporting
 
-This cohort spec is referenced by file name (not by quote) in the
-Methods sections of P1, P2, P3. The TRIPOD-AI checklist for P1 points
-here for items 4a (study design), 5a (data source), 5b (inclusion /
+The TRIPOD+AI checklist for the calibration-first manuscript points to this specification for items 4a (study design), 5a (data source), 5b (inclusion /
 exclusion), 6a (outcome) and 6b (predictors).
 
 # Pedagogy (D5 default --- balanced)
 
-Vignettes are the pedagogical surface for Usman's PhD students. P1 is
-a teaching artefact as well as a manuscript: function names mirror the
+The package is a teaching artefact as well as the engine behind the
+manuscript: function names mirror the
 clinical concepts (`build_cohort`, `compute_pim3`, `decision_curve`),
 and the targets DAG mirrors the methods narrative one-to-one. Where
 pipeline mechanics could obscure clinical interpretation, callout

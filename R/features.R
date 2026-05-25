@@ -199,6 +199,16 @@ build_features <- function(cohort, paths,
   ## --- Feature dictionary ----------------------------------------------------
   dict <- build_feature_dict(x, panels, miss_cols, window_hours)
 
+  ## --- Feature-matrix / dictionary alignment invariant -----------------------
+  ## `x` carries the predictor columns plus a single `icustay_id` alignment
+  ## column (assigned an "id" role by [default_recipe()] and excluded by
+  ## [prep_fold()] before model fitting). The dictionary must list exactly
+  ## the predictor columns.
+  if (!setequal(setdiff(names(x), "icustay_id"), dict$variable)) {
+    stop("feature-matrix and dictionary disagree",
+         call. = FALSE)
+  }
+
   ## --- Hard runtime audit ----------------------------------------------------
   audit_pass <- audit_no_leakage(dict, raw_events = list(vital_long, lab_long),
                                  window_hours = window_hours)

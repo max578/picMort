@@ -4,7 +4,14 @@
 \alias{decision_curve}
 \title{Decision-curve analysis at clinically meaningful thresholds}
 \usage{
-decision_curve(probs, y, thresholds = c(0.05, 0.1, 0.2), plot_grid = TRUE)
+decision_curve(
+  probs,
+  y,
+  thresholds = c(0.05, 0.1, 0.2),
+  plot_grid = TRUE,
+  n_boot = 0L,
+  seed = 20260508L
+)
 }
 \arguments{
 \item{probs}{Named list of predicted-probability vectors.}

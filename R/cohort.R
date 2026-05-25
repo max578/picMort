@@ -1,4 +1,4 @@
-#' Build the frozen P1/P2/P3 cohort
+#' Build the canonical study cohort
 #'
 #' @description
 #' `r lifecycle::badge("experimental")`
@@ -7,15 +7,20 @@
 #' first ICU stay per patient; age 0-18 y at admission; valid ICU
 #' admit/discharge timestamps; in-hospital mortality outcome attached.
 #'
-#' Cohort assembly is the single source of truth shared by P1 (baseline),
-#' P2 (inductive-CI inference) and P3 (multi-modal fusion). Deviations are
-#' forbidden; sensitivity analyses operate on the same base cohort with
-#' documented filters.
+#' Cohort assembly is the single source of truth for the calibration-first
+#' analysis. Deviations are forbidden; sensitivity analyses operate on the
+#' same base cohort with documented filters.
 #'
 #' @param paths Output of [pic_paths()].
 #' @param min_los_hours Minimum ICU length-of-stay in hours required for
 #'   the prediction-window framing. Default 24 (T+24h lock). Set to 12
 #'   for the T+12h sensitivity arm.
+#' @param prediction_window_hours Prediction window in hours. Used by
+#'   `is_surgical` to filter `SURGERY_VITAL_SIGNS` evidence to rows that
+#'   occur strictly before `T0 + prediction_window_hours`. Without this
+#'   filter, surgery evidence appearing only after the prediction-window
+#'   close leaks future information. Default = `min_los_hours` (T+24h
+#'   main analysis); pass `12L` for the T+12h sensitivity arm.
 #' @param verbose Logical. Emit cohort-attrition log lines.
 #'
 #' @return A `data.table` keyed by `subject_id`, `hadm_id`, `icustay_id`.
@@ -38,7 +43,9 @@
 #' }
 #' @importFrom data.table fread setnames setorder uniqueN setattr `:=` `.SD`
 #' @export
-build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
+build_cohort <- function(paths, min_los_hours = 24L,
+                         prediction_window_hours = min_los_hours,
+                         verbose = TRUE) {
   log_step <- function(steps, step, n,
                        excluded = NA_integer_,
                        reason = NA_character_) {
@@ -158,12 +165,37 @@ build_cohort <- function(paths, min_los_hours = 24L, verbose = TRUE) {
 
   cohort[, admit_year := data.table::year(admittime)]
 
+  ## Window-aware is_surgical: only count SURGERY_VITAL_SIGNS evidence
+  ## whose `MONITORTIME` is strictly before `T0 + prediction_window_hours`.
+  ## A bare `hadm_id %in% surg_hadms` join would leak future evidence
+  ## (e.g. surgery in hour 36 marking a patient as surgical at T+24h).
   surg <- data.table::fread(cmd = sprintf("gunzip -c %s",
                                           shQuote(paths$surgery_vital_signs)),
-                            select = c("HADM_ID"), showProgress = FALSE)
+                            select = c("HADM_ID","MONITORTIME"),
+                            showProgress = FALSE)
   data.table::setnames(surg, tolower(names(surg)))
-  surg_hadms <- unique(surg$hadm_id)
-  cohort[, is_surgical := hadm_id %in% surg_hadms]
+  surg[, monitortime := as.POSIXct(monitortime, tz = "UTC")]
+
+  intime_lookup <- cohort[, list(hadm_id, intime)]
+  data.table::setkey(intime_lookup, hadm_id)
+  surg <- merge(surg, intime_lookup, by = "hadm_id",
+                all.x = FALSE, all = FALSE)
+  surg[, t_hours := as.numeric(difftime(monitortime, intime,
+                                        units = "hours"))]
+  surg_in_window <- surg[!is.na(t_hours) & t_hours >= 0 &
+                          t_hours < prediction_window_hours]
+  surg_hadms_window <- unique(surg_in_window$hadm_id)
+  cohort[, is_surgical := hadm_id %in% surg_hadms_window]
+
+  if (isTRUE(verbose)) {
+    n_after  <- surg[, sum(t_hours >= prediction_window_hours, na.rm = TRUE)]
+    n_window <- nrow(surg_in_window)
+    message(sprintf(
+      "[cohort] is_surgical (window-aware): %d positive (in window=%d; after window=%d; window=%dh)",
+      sum(cohort$is_surgical), n_window, n_after,
+      as.integer(prediction_window_hours)
+    ))
+  }
 
   primary_icd <- if ("icd10_code_cn" %in% names(cohort)) {
     cohort$icd10_code_cn

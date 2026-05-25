@@ -97,17 +97,14 @@ reference:
       - plot_decision_curve
 
 articles:
-  - title: Paper series
+  - title: Vignettes
     desc: >
-      The package's four vignettes — frozen cohort contract plus the
-      three manuscript-shaped vignettes (P1 baseline, P2 inductive-CI
-      inference, P3 multi-modal fusion).
+      The package's two vignettes — frozen cohort specification plus a
+      toy-cohort walkthrough of the calibration-first pipeline.
     navbar: ~
     contents:
       - cohort_spec
       - paper1_baseline
-      - paper2_inference
-      - paper3_fusion
 
 news:
   releases:

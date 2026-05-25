@@ -1,5 +1,5 @@
 ---
-title: "P1 baseline --- toy-cohort illustration of the calibration-first pipeline"
+title: "Calibration-first pipeline --- toy-cohort illustration"
 author: "PhD student (lead), Max Moldovan, Usman Iqbal"
 date: "2026-05-17"
 output:
@@ -7,7 +7,7 @@ output:
     toc: true
     toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{P1 baseline --- toy-cohort illustration}
+  %\VignetteIndexEntry{Calibration-first pipeline --- toy-cohort illustration}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -23,7 +23,7 @@ knitr::opts_chunk$set(
 set.seed(20260517L)
 
 # Stan toolchain detection. brms (used for the Bayesian
-# regularised-horseshoe fit) requires rstan + BH (Boost C++ headers).
+# regularized-horseshoe fit) requires rstan + BH (Boost C++ headers).
 # On CI runners and minimal environments these may not be installed;
 # we detect their availability once and gate the Bayesian chunks
 # accordingly, so the rest of the vignette still renders.
@@ -37,7 +37,7 @@ fit_bh <- NULL
 
 ```{r brms-unavailable-notice, eval=!run_bayes, echo = FALSE, results = "asis"}
 cat(
-  "> **Note.** The Bayesian regularised-horseshoe fit is skipped in ",
+  "> **Note.** The Bayesian regularized-horseshoe fit is skipped in ",
   "the default vignette render to keep `R CMD check` fast and portable. ",
   "Set `PICMORT_RUN_VIGNETTE_BAYES=true` on a host with `brms`, `rstan`, ",
   "and `BH` installed to include the Bayesian model.\n",
@@ -45,12 +45,13 @@ cat(
 )
 ```
 
-> **Scope.** This vignette mirrors the P1 paediatric ICU mortality pipeline
-> end-to-end on a small synthetic cohort (`inst/extdata/toy_cohort.rds`,
-> n = 80, mortality = 10 %). Numbers shown here are illustrative; they do
-> not reproduce P1 manuscript results. The full pipeline on PIC v1.1.0
-> (n = 8,736) lives at
-> `../../deliverables/pccm_submission_pkg_v2/manuscript_pccm.pdf`.
+> **Scope.** This vignette mirrors the calibration-first pediatric ICU
+> mortality pipeline end-to-end on a small synthetic cohort
+> (`inst/extdata/toy_cohort.rds`, n = 80, mortality = 10 %). Numbers
+> shown here are illustrative and do not reproduce the manuscript
+> results. The full pipeline on PIC v1.1.0 (n = 8,736) is shipped as
+> Supplementary File S1 (`pipeline/full_pipeline.R`) alongside the
+> manuscript bundle.
 
 # What this vignette demonstrates
 
@@ -65,13 +66,13 @@ The calibration-first contract for `picMort` runs through four stages:
    no length-of-stay, no discharge-time, no post-window leakage. On PIC
    v1.1.0 this is `build_features(cohort, pic_paths())`; here, because
    the toy cohort ships without raw `CHARTEVENTS` / `LABEVENTS`, the
-   vignette synthesises a small, deterministic feature matrix with the
+   vignette synthesizes a small, deterministic feature matrix with the
    same shape and column conventions so the downstream pipeline is
    exercised faithfully. The synthesis routine is local to this vignette
    --- production runs go through `build_features()`.
-3. **Models.** Penalised logistic regression (elastic net), XGBoost, and
-   Bayesian logistic regression with a regularised-horseshoe prior. The
-   Bayesian model is the JTM clinical-functional wedge: every patient
+3. **Models.** Penalized logistic regression (elastic net), XGBoost, and
+   Bayesian logistic regression with a regularized-horseshoe prior. The
+   Bayesian model is the package's headline functional output: every patient
    carries a posterior 95 % credible interval on predicted mortality.
 4. **Evaluation.** Calibration suite (slope, intercept, ICI,
    calibration-in-the-large) and decision-curve analysis at 5 %, 10 %,
@@ -284,11 +285,11 @@ knitr::kable(disc, digits = 3,
              caption = "Discrimination metrics with bootstrap 95% CIs.")
 ```
 
-# How this maps to the P1 manuscript
+# How this maps to the manuscript
 
-This vignette walks the same four-stage pipeline that drives the P1
-*Pediatric Critical Care Medicine* manuscript bundle at
-`deliverables/pccm_submission_pkg_v2/manuscript_pccm.pdf`. The
+This vignette walks the same four-stage pipeline that drives the
+calibration-first *Pediatric Critical Care Medicine* manuscript bundle
+(Supplementary File S1, `pipeline/full_pipeline.R`). The
 production bundle:
 
 - runs on PIC v1.1.0 (n = 8,736, mortality 0.0844) rather than the 80-row
@@ -304,7 +305,7 @@ production bundle:
   outcome, with discrimination supporting.
 
 Numbers in the tables above are not stable across runs of the toy
-synthesiser and must not be quoted in any paper. The toy cohort exists
+synthesizer and must not be quoted in any paper. The toy cohort exists
 to let `R CMD check` exercise the package surface end-to-end and to give
 new contributors a runnable scaffold.
 

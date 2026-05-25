@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit.R
 \name{fit_elastic_net}
 \alias{fit_elastic_net}
-\title{Fit penalised logistic regression (elastic net)}
+\title{Fit penalized logistic regression (elastic net)}
 \usage{
 fit_elastic_net(
   features,
@@ -31,7 +31,7 @@ A list with \code{model}, \code{prep}, \code{predictors}, \code{best_alpha},
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
 Inner CV over the (alpha, lambda) grid; class-weighted to handle
-the ~7-9 \% paediatric ICU mortality rate. Selects best alpha by
+the ~7-9 \% pediatric ICU mortality rate. Selects best alpha by
 minimum CV deviance and uses \code{lambda.1se} for parsimony.
 }
 \examples{
